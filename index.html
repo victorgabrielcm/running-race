@@ -3,149 +3,80 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Victor Gabriel - Portfólio de Corridas e Conquistas">
-  <meta name="theme-color" content="#0a0e17">
-  <title>Victor Gabriel | Race Tracker</title>
-
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-
-  <!-- App CSS -->
+  <title>Race Tracker — Victor Gabriel</title>
+  <meta name="description" content="Portfólio de corridas, medalhas e conquistas.">
+  <meta name="theme-color" content="#0F2730">
+  <link rel="icon" href="assets/logo-icon.png">
   <link rel="stylesheet" href="css/style.css">
-
-  <!-- Favicon (running emoji as SVG) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
-
-  <!-- Open Graph -->
-  <meta property="og:title" content="Victor Gabriel | Race Tracker">
-  <meta property="og:description" content="Corredor apaixonado por desafios. Acompanhe minhas corridas e conquistas.">
-  <meta property="og:type" content="website">
 </head>
 <body>
 
-  <!-- ========== NAVBAR ========== -->
-  <nav class="navbar" id="navbar">
+  <header class="header">
+    <div class="container header-inner">
+      <a href="index.html" class="logo">
+        <img class="logo-mark" src="assets/logo-icon.png" alt="Victor Gabriel">
+      </a>
+      <a href="add.html" class="btn btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Registrar Corrida
+      </a>
+    </div>
+  </header>
+
+  <main>
     <div class="container">
-      <a href="#hero" class="navbar-brand">VG</a>
-      <ul class="navbar-links" id="navLinks">
-        <li><a href="#hero">Início</a></li>
-        <li><a href="#stats">Estatísticas</a></li>
-        <li><a href="#timeline">Corridas</a></li>
-        <li><a href="#medals">Medalhas</a></li>
-      </ul>
-      <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-value" id="statRaces">0</div>
+          <div class="stat-label">Corridas</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statKm">0 km</div>
+          <div class="stat-label">Distância Total</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statBestPace">—</div>
+          <div class="stat-label">Melhor Pace</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="statMedals">0</div>
+          <div class="stat-label">Medalhas</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <h2 class="section-title">Minhas Corridas</h2>
+      </div>
+      <div class="races-grid" id="racesGrid"></div>
     </div>
-  </nav>
+  </main>
 
-  <!-- ========== HERO ========== -->
-  <section id="hero">
-    <canvas id="particles-canvas"></canvas>
-    <div class="hero-content">
-      <div class="hero-badge">
-        <span class="hero-pulse"></span>
-        Corredor Ativo
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <div>
+          <div class="card-date" id="modalDate"></div>
+          <div class="modal-title" id="modalName"></div>
+          <div class="card-location" id="modalLocation"></div>
+        </div>
+        <button class="modal-close" id="modalClose">&times;</button>
       </div>
-      <h1 class="hero-name">Victor Gabriel</h1>
-      <p class="hero-tagline">Corredor apaixonado por desafios. Cada quilômetro é uma conquista.</p>
-      <div class="hero-stats">
-        <div class="hero-stat">
-          <span class="hero-stat-value" data-counter="totalRaces">0</span>
-          <span class="hero-stat-label">Corridas</span>
-        </div>
-        <div class="hero-stat">
-          <span class="hero-stat-value" data-counter="totalKm">0</span>
-          <span class="hero-stat-label">KM Totais</span>
-        </div>
-        <div class="hero-stat">
-          <span class="hero-stat-value" data-counter="bestPace">--</span>
-          <span class="hero-stat-label">Melhor Pace</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== STATS DASHBOARD ========== -->
-  <section id="stats">
-    <div class="container">
-      <h2 class="section-title reveal">Minhas <span>Estatísticas</span></h2>
-      <div class="stats-grid" id="statsGrid">
-        <div class="stat-card reveal">
-          <span class="stat-card-icon">🏁</span>
-          <span class="stat-card-value" data-counter="totalRacesCard">0</span>
-          <span class="stat-card-label">Total Corridas</span>
-        </div>
-        <div class="stat-card reveal">
-          <span class="stat-card-icon">📏</span>
-          <span class="stat-card-value" data-counter="totalKmCard">0</span>
-          <span class="stat-card-label">Total KM</span>
-        </div>
-        <div class="stat-card reveal">
-          <span class="stat-card-icon">⚡</span>
-          <span class="stat-card-value" data-counter="bestPaceCard">--</span>
-          <span class="stat-card-label">Melhor Pace</span>
-        </div>
-        <div class="stat-card reveal">
-          <span class="stat-card-icon">📊</span>
-          <span class="stat-card-value" data-counter="avgPaceCard">--</span>
-          <span class="stat-card-label">Média de Pace</span>
-        </div>
-      </div>
-
-      <div class="chart-wrapper reveal">
-        <h3 class="chart-title">Progressão de Distância</h3>
-        <div class="bar-chart" id="barChart">
-          <!-- Bars injected by JS -->
+      <div class="modal-body">
+        <div class="modal-photos" id="modalPhotos"></div>
+        <div class="modal-details" id="modalDetails"></div>
+        <p class="modal-notes" id="modalNotes" style="display:none"></p>
+        <a class="modal-strava-link" id="modalStrava" href="#" target="_blank" rel="noopener" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Ver no Strava
+        </a>
+        <div class="modal-actions">
+          <a id="modalEditBtn" href="#" class="btn btn-ghost">Editar</a>
+          <button id="modalDeleteBtn" class="btn btn-danger">Excluir</button>
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- ========== RACE TIMELINE ========== -->
-  <section id="timeline">
-    <div class="container">
-      <h2 class="section-title reveal">Minhas <span>Corridas</span></h2>
-      <div class="timeline" id="timelineContainer">
-        <!-- Timeline items injected by JS -->
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== MEDAL SHOWCASE ========== -->
-  <section id="medals">
-    <div class="container">
-      <h2 class="section-title reveal">Minhas <span>Medalhas</span></h2>
-      <div class="medals-summary reveal">
-        <span class="count" data-counter="totalMedals">0</span>
-        <br>
-        <span class="label">Medalhas Conquistadas</span>
-      </div>
-      <div class="medals-grid" id="medalsGrid">
-        <!-- Medal cards injected by JS -->
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== FOOTER ========== -->
-  <footer class="footer">
-    <div class="container">
-      <ul class="footer-links">
-        <li><a href="https://github.com/victorgabrielcm" target="_blank" rel="noopener">GitHub</a></li>
-        <li><a href="https://www.strava.com/" target="_blank" rel="noopener">Strava</a></li>
-        <li><a href="https://www.instagram.com/" target="_blank" rel="noopener">Instagram</a></li>
-      </ul>
-      <p class="footer-tagline">Movido por <span>paixão</span> e quilômetros.</p>
-    </div>
-  </footer>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-  <!-- App JS -->
   <script src="js/app.js"></script>
 </body>
 </html>
