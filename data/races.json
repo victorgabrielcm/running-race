@@ -1,0 +1,32 @@
+{
+  "runner": {
+    "name": "Victor Gabriel",
+    "bio": "Corredor apaixonado por desafios",
+    "totalRaces": 0,
+    "startedRunning": "2024"
+  },
+  "races": [
+    {
+      "id": 1,
+      "name": "Corrida de Exemplo - 10K",
+      "date": "2025-03-15",
+      "location": "São Paulo, SP",
+      "distance": 10,
+      "distanceUnit": "km",
+      "time": "00:55:30",
+      "pace": "5:33",
+      "position": 150,
+      "totalParticipants": 2000,
+      "bibNumber": "1234",
+      "medalType": "finisher",
+      "category": "10K",
+      "elevation": 120,
+      "route": {
+        "start": [-23.5505, -46.6333],
+        "coordinates": [[-23.5505, -46.6333], [-23.5489, -46.6388], [-23.5520, -46.6420], [-23.5545, -46.6350], [-23.5505, -46.6333]]
+      },
+      "photos": [],
+      "notes": "Primeira corrida oficial! Sensação incrível de cruzar a linha de chegada."
+    }
+  ]
+}
