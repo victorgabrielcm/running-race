@@ -1,82 +1,132 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Race Tracker — Victor Gabriel</title>
-  <meta name="description" content="Portfólio de corridas, medalhas e conquistas.">
-  <meta name="theme-color" content="#0F2730">
-  <link rel="icon" href="assets/logo-icon.png">
-  <link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Victor Gabriel — Corredor de Rua</title>
+  <meta name="description" content="Portfolio de corridas de Victor Gabriel — cada quilômetro conta uma história." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-  <header class="header">
-    <div class="container header-inner">
-      <a href="index.html" class="logo">
-        <img class="logo-mark" src="assets/logo-icon.png" alt="Victor Gabriel">
+  <nav class="nav" id="nav">
+    <a href="#hero" class="nav-logo">VG</a>
+    <ul class="nav-links">
+      <li><a href="#corridas">Corridas</a></li>
+      <li><a href="#medalhas">Medalhas</a></li>
+      <li><a href="#midia">Galeria</a></li>
+    </ul>
+    <a href="https://www.strava.com/athletes/176033874" target="_blank" class="nav-strava">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+      Strava
+    </a>
+  </nav>
+
+  <section class="hero" id="hero">
+    <div class="hero-media">
+      <video class="hero-video" autoplay muted loop playsinline>
+        <!-- <source src="images/hero.mp4" type="video/mp4"> -->
+      </video>
+      <div class="hero-gradient"></div>
+    </div>
+    <div class="hero-content">
+      <p class="hero-eyebrow">Corredor de Rua · Anápolis, GO</p>
+      <h1 class="hero-title">
+        <span>Victor</span>
+        <span>Gabriel</span>
+      </h1>
+      <p class="hero-tagline">Cada quilômetro conta uma história.</p>
+      <a href="#corridas" class="hero-cta">
+        <span>Ver Corridas</span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>
       </a>
-      <a href="add.html" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Registrar Corrida
-      </a>
     </div>
-  </header>
-
-  <main>
-    <div class="container">
-      <div class="stats-bar">
-        <div class="stat-item">
-          <div class="stat-value" id="statRaces">0</div>
-          <div class="stat-label">Corridas</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value" id="statKm">0 km</div>
-          <div class="stat-label">Distância Total</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value" id="statBestPace">—</div>
-          <div class="stat-label">Melhor Pace</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value" id="statMedals">0</div>
-          <div class="stat-label">Medalhas</div>
-        </div>
+    <div class="hero-stats" id="heroStats">
+      <div class="hero-stat">
+        <span class="hero-stat-number" id="statKm">—</span>
+        <span class="hero-stat-label">KM Rodados</span>
       </div>
-
-      <div class="section-header">
-        <h2 class="section-title">Minhas Corridas</h2>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <span class="hero-stat-number" id="statRaces">—</span>
+        <span class="hero-stat-label">Corridas</span>
       </div>
-      <div class="races-grid" id="racesGrid"></div>
-    </div>
-  </main>
-
-  <div class="modal-overlay" id="modalOverlay">
-    <div class="modal" id="modal">
-      <div class="modal-header">
-        <div>
-          <div class="card-date" id="modalDate"></div>
-          <div class="modal-title" id="modalName"></div>
-          <div class="card-location" id="modalLocation"></div>
-        </div>
-        <button class="modal-close" id="modalClose">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="modal-photos" id="modalPhotos"></div>
-        <div class="modal-details" id="modalDetails"></div>
-        <p class="modal-notes" id="modalNotes" style="display:none"></p>
-        <a class="modal-strava-link" id="modalStrava" href="#" target="_blank" rel="noopener" style="display:none">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Ver no Strava
-        </a>
-        <div class="modal-actions">
-          <a id="modalEditBtn" href="#" class="btn btn-ghost">Editar</a>
-          <button id="modalDeleteBtn" class="btn btn-danger">Excluir</button>
-        </div>
+      <div class="hero-stat-divider"></div>
+      <div class="hero-stat">
+        <span class="hero-stat-number" id="statMedals">—</span>
+        <span class="hero-stat-label">Medalhas</span>
       </div>
     </div>
-  </div>
+    <div class="scroll-hint">
+      <span>scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
 
-  <script src="js/app.js"></script>
+  <section class="section timeline-section" id="corridas">
+    <div class="section-intro">
+      <p class="section-eyebrow">Minha Jornada</p>
+      <h2 class="section-title">Corridas</h2>
+      <p class="section-subtitle">Sincronizado com Strava · Atualizado automaticamente</p>
+    </div>
+    <div class="timeline" id="timeline">
+      <div class="timeline-spine"></div>
+      <div class="timeline-loading" id="timelineLoading">
+        <div class="loading-spinner"></div>
+        <p>Carregando corridas…</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section medals-section" id="medalhas">
+    <div class="section-intro">
+      <p class="section-eyebrow">Conquistas</p>
+      <h2 class="section-title">Medalhas</h2>
+    </div>
+    <div class="medals-grid" id="medalsGrid">
+      <div class="medals-empty" id="medalsEmpty" style="display:none">
+        <p>Adicione imagens em <code>images/medals/</code> e marque <code>has_medal: true</code> no races.json</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section media-section" id="midia">
+    <div class="section-intro">
+      <p class="section-eyebrow">Momentos</p>
+      <h2 class="section-title">Galeria</h2>
+    </div>
+    <div class="media-grid" id="mediaGrid">
+      <!--
+      <div class="media-item media-wide">
+        <img src="images/photos/foto1.jpg" alt="" loading="lazy" />
+      </div>
+      -->
+      <div class="media-placeholder">
+        <p>Adicione fotos em <code>images/photos/</code></p>
+        <p>Para o hero, descomente a linha <code>&lt;source src="images/hero.mp4"&gt;</code></p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <p class="footer-name">Victor Gabriel</p>
+      <p class="footer-tagline">Movido por paixão e quilômetros.</p>
+      <div class="footer-links">
+        <a href="https://www.strava.com/athletes/176033874" target="_blank">Strava</a>
+      </div>
+    </div>
+    <p class="footer-copy">© 2026 Victor Gabriel</p>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="js/timeline.js"></script>
+  <script src="js/medals.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
