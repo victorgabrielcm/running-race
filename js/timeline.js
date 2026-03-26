@@ -129,6 +129,10 @@ async function initTimeline() {
     data.races.forEach((race, i) => container.appendChild(buildCard(race, i)));
     requestAnimationFrame(animateTimeline);
 
+    if (typeof initHeatmap === 'function') {
+      initHeatmap(data.races);
+    }
+
     if (typeof initMedals === 'function') {
       initMedals(data.races.filter(r => r.has_medal));
     }
