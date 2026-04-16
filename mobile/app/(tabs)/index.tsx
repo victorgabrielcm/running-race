@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 
 import { Colors, Spacing, Radius, BRAND } from '@/theme';
 import { Text } from '@/components/ui/Text';
@@ -19,6 +20,7 @@ import { greeting, formatDistance, formatPace, formatDurationHuman } from '@/uti
 import { mockActivities, mockPlan, mockInsight, mockWeeklyStats } from '@/mock/data';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const activities = useTrainingStore((s) => s.activities);
   const plan = useTrainingStore((s) => s.plan);
@@ -69,7 +71,7 @@ export default function DashboardScreen() {
               <Text variant="label" color={Colors.primary} tracking="widest">
                 {BRAND.name}
               </Text>
-              <Pressable style={styles.iconBtn}>
+              <Pressable style={styles.iconBtn} onPress={() => router.push('/settings')}>
                 <Ionicons name="settings-outline" size={20} color={Colors.textPrimary} />
               </Pressable>
             </View>

@@ -1,75 +1,123 @@
-# VINCERE — Setup de desenvolvedor (faz uma vez)
+# VINCERE — Rodando localmente no VS Code
 
 Este guia é para **você, dono do app**. O usuário final que baixar o VINCERE da loja **nunca vê nada disso** — ele só clica em "Conectar com Strava" e o app funciona.
 
 ---
 
-## O que você precisa configurar (uma vez só)
+## 1. Pré-requisitos — instale uma vez só
 
-### 1. Criar uma API App no Strava
+| Software | Versão mínima | Link |
+|---|---|---|
+| Node.js | 20 LTS | https://nodejs.org |
+| Docker Desktop | última | https://docker.com/get-started |
+| Python | 3.12+ | (só se rodar backend sem Docker) |
+| Expo Go | última | App Store / Play Store |
 
-Acesse https://www.strava.com/settings/api
+**VS Code Extensions recomendadas:**
 
-Preencha:
+Abra o VS Code, pressione `Ctrl+Shift+X` (ou `Cmd+Shift+X` no Mac) e instale:
+
+- `React Native Tools` (Microsoft)
+- `Expo Tools` (Expo)
+- `ESLint`
+- `Prettier - Code formatter`
+- `Python` (Microsoft) — para o backend
+- `Docker` (Microsoft) — para ver containers rodando
+- `Thunder Client` — cliente HTTP para testar a API (alternativa ao Postman)
+
+---
+
+## 2. Configurar credenciais (uma vez só)
+
+### 2.1 Criar API App no Strava
+
+Acesse https://www.strava.com/settings/api e preencha:
+
 - **Application Name**: `Vincere`
 - **Category**: `Training`
-- **Website**: `https://vincere.app` (ou o seu domínio)
-- **Application Description**: `Coach de corrida com IA`
-- **Authorization Callback Domain**: `vincere.app` (ou o domínio que vai hospedar o backend)
+- **Website**: `https://vincere.app`
+- **Authorization Callback Domain**: `localhost` (para testes locais)
 
-Após criar, o Strava te entrega:
-- `Client ID` → **público**, pode ficar no app (já está: `216298`)
-- `Client Secret` → **privado**, só no servidor (nunca no app!)
+O Strava te entrega:
+- `Client ID` → público (já está configurado como `216298`)
+- `Client Secret` → **secreto**, só no servidor
 
-### 2. Obter chave da Anthropic (Claude)
+### 2.2 Obter chave da Anthropic (Claude)
 
 Acesse https://console.anthropic.com/ → **API Keys** → **Create Key**.
 
-Copia a chave `sk-ant-api03-...`.
+---
 
-### 3. Configurar o backend
+## 3. Configurar o backend
 
 ```bash
 cd backend
 cp .env.example .env
-nano .env
 ```
 
-Preenche:
+Edite `.env` no VS Code e preencha:
+
 ```env
 STRAVA_CLIENT_ID=216298
 STRAVA_CLIENT_SECRET=cole-seu-client-secret-aqui
 ANTHROPIC_API_KEY=sk-ant-api03-cole-aqui
-CLAUDE_MODEL=claude-sonnet-4-5
+CLAUDE_MODEL=claude-sonnet-4-6
 ```
 
-### 4. Rodar o backend
+---
+
+## 4. Rodar o backend (Docker)
+
+No terminal integrado do VS Code (`Ctrl+` ` `` `):
 
 ```bash
+# Na raiz do projeto
 docker-compose up -d
-# Backend escutando em http://localhost:8000
-# Docs interativas: http://localhost:8000/docs
 ```
 
-### 5. Apontar o app para o backend
+Isso sobe 3 containers: FastAPI (porta 8000), PostgreSQL (5432), Redis (6379).
 
-Em `mobile/app.json`, no campo `extra.apiUrl`:
+Confirme que está rodando:
+```bash
+docker ps
+# Ou abra a extensão Docker no VS Code (ícone de baleia na barra lateral)
+```
+
+Acesse http://localhost:8000/docs para ver a API interativa.
+
+**Para ver os logs do backend em tempo real:**
+```bash
+docker-compose logs -f backend
+```
+
+---
+
+## 5. Configurar a URL do backend no app
+
+> **Atenção:** No celular físico, `localhost` não aponta para o seu computador.
+> Você precisa usar o IP da sua máquina na rede Wi-Fi.
+
+**Como descobrir seu IP local:**
+- **Mac/Linux:** `ifconfig | grep "inet " | grep -v 127` → geralmente `192.168.x.x`
+- **Windows:** `ipconfig` → procure "Endereço IPv4"
+
+Edite `mobile/app.json`, campo `extra.apiUrl`:
 
 ```json
 {
   "expo": {
     "extra": {
-      "apiUrl": "http://SEU-IP-LOCAL:8000"
+      "apiUrl": "http://192.168.1.42:8000"
     }
   }
 }
 ```
 
-Para testar no celular físico (não emulador), use o IP da sua máquina na rede Wi-Fi (`192.168.x.x`), **não** `localhost`.
+> Se for testar no **simulador iOS/Android** (não celular físico), pode usar `http://localhost:8000`.
 
-Em produção, use sua URL pública: `https://api.vincere.app`.
+---
 
-### 6. Rodar o app
+## 6. Rodar o app mobile
 
 ```bash
 cd mobile
@@ -77,11 +125,85 @@ npm install
 npx expo start
 ```
 
-Escaneia o QR code com o **Expo Go** no iPhone/Android.
+O terminal vai mostrar um **QR code** e um menu:
+
+```
+› Metro waiting on exp://192.168.1.42:8081
+› Scan the QR code above with Expo Go (Android) or the Camera app (iOS)
+
+i  ›  Press i │ open iOS simulator
+a  ›  Press a │ open Android emulator
+w  ›  Press w │ open web browser
+```
+
+### Opção A — Celular físico (recomendado para GPS)
+
+1. Instale o app **Expo Go** no seu iPhone ou Android
+2. Certifique que o celular está **na mesma rede Wi-Fi** do computador
+3. **iPhone:** abra a câmera e aponte para o QR code
+4. **Android:** abra o Expo Go e toque em "Scan QR Code"
+
+### Opção B — Simulador iOS (Mac com Xcode)
+
+Pressione `i` no terminal do Expo. O simulador abre automaticamente.
+
+> Instale o Xcode pela App Store (gratuito, ~15 GB). Depois:
+> ```bash
+> xcode-select --install
+> sudo xcodebuild -license accept
+> ```
+
+### Opção C — Emulador Android (qualquer OS)
+
+1. Instale o [Android Studio](https://developer.android.com/studio)
+2. Em Tools → Device Manager → crie um Pixel 8 API 35
+3. Inicie o emulador
+4. Pressione `a` no terminal do Expo
 
 ---
 
-## O que acontece quando o usuário clica em "Conectar com Strava"
+## 7. Fluxo de desenvolvimento típico
+
+Abra **3 terminais** no VS Code (ícone `+` na barra de terminais):
+
+| Terminal | Comando | Para quê |
+|---|---|---|
+| 1 | `docker-compose up` | Backend + banco |
+| 2 | `cd mobile && npx expo start` | App mobile (hot reload) |
+| 3 | (livre) | git, testes, etc |
+
+O Expo tem **hot reload**: salve qualquer arquivo `.tsx` e o app atualiza instantaneamente no celular sem recompilar.
+
+**Para forçar um reload completo:** agite o celular → "Reload" no menu dev.
+
+---
+
+## 8. Testando funcionalidades específicas
+
+### Strava OAuth
+> Requer o backend rodando E o `apiUrl` apontando para seu IP local.
+> O redirect vai funcionar porque o Strava permite `localhost` como callback domain em modo de desenvolvimento.
+
+### GPS Tracking
+> Funciona melhor no celular físico. No simulador, o GPS é simulado.
+> Em `mobile/app/run/index.tsx`, aguarde o sinal GPS ficar verde antes de iniciar.
+
+### Push Notifications
+> Não funcionam no Expo Go em simulador. Para testar de verdade, use um **dev build**:
+> ```bash
+> npx expo run:ios   # compila e instala no simulador
+> npx expo run:android
+> ```
+
+### Apple Health / Google Health
+> Requer dev build (não funciona no Expo Go). Execute:
+> ```bash
+> npx expo run:ios
+> ```
+
+---
+
+## 9. Como o Strava funciona para o usuário final
 
 ```
 ┌─────────────┐           ┌──────────────┐           ┌────────────┐
@@ -120,7 +242,7 @@ O **client_secret nunca sai do seu servidor**. O usuário final nunca precisa co
 
 ---
 
-## Deploy em produção
+## 10. Deploy em produção
 
 ### Backend (Railway / Render / Fly.io)
 
@@ -159,7 +281,7 @@ eas submit --platform android
 
 ---
 
-## Checklist antes de publicar
+## 11. Checklist antes de publicar
 
 - [ ] `STRAVA_CLIENT_SECRET` no backend (não commitado, em `.env` local + Railway secrets)
 - [ ] `ANTHROPIC_API_KEY` no backend

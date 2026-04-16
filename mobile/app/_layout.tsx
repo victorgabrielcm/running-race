@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Stack, SplashScreen, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,6 +18,8 @@ import {
 
 import { Colors } from '@/theme';
 import { useAuthStore } from '@/stores/authStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { notificationService, type NotificationScreen } from '@/services/notificationService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,12 +36,37 @@ export default function RootLayout() {
   const hydrate = useAuthStore((s) => s.hydrate);
   const isLoading = useAuthStore((s) => s.isLoading);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hydrateSettings = useSettingsStore((s) => s.hydrate);
+  const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
+  const reminderHour = useSettingsStore((s) => s.reminderHour);
+  const reminderMinute = useSettingsStore((s) => s.reminderMinute);
   const segments = useSegments();
   const router = useRouter();
 
+  // Keep a ref so we can remove the notification tap listener on unmount
+  const notifListenerRef = useRef<ReturnType<typeof notificationService.addTapListener> | null>(null);
+
   useEffect(() => {
     hydrate();
-  }, [hydrate]);
+    hydrateSettings();
+  }, [hydrate, hydrateSettings]);
+
+  // Set up notification tap deep-linking once the router is ready
+  useEffect(() => {
+    notifListenerRef.current = notificationService.addTapListener((screen: NotificationScreen) => {
+      router.push(screen as any);
+    });
+    return () => {
+      notifListenerRef.current?.remove();
+    };
+  }, [router]);
+
+  // Re-schedule daily reminder whenever the setting changes
+  useEffect(() => {
+    if (notificationsEnabled) {
+      notificationService.scheduleDailyReminder(reminderHour, reminderMinute).catch(() => {});
+    }
+  }, [notificationsEnabled, reminderHour, reminderMinute]);
 
   useEffect(() => {
     if (fontsLoaded && !isLoading) {
@@ -76,6 +103,13 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="run"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen
+            name="settings"
             options={{
               presentation: 'modal',
               animation: 'slide_from_bottom',

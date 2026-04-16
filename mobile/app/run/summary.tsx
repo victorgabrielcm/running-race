@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, StyleSheet, View, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View, Pressable, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,9 @@ import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { useRunStore } from '@/stores/runStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { healthService } from '@/services/healthService';
+import { notificationService } from '@/services/notificationService';
 import { formatDistance, formatPace, formatTime } from '@/utils/format';
 
 export default function SummaryScreen() {
@@ -20,16 +23,31 @@ export default function SummaryScreen() {
     avgPaceSecPerKm,
     elevationGain,
     splits,
-    points,
+    startedAt,
     reset,
   } = useRunStore();
+
+  const { healthSyncEnabled, autoSyncAfterRun } = useSettingsStore();
+  const [healthSyncing, setHealthSyncing] = useState(false);
+  const [healthSynced, setHealthSynced] = useState(false);
 
   const bestSplit = splits.reduce<typeof splits[number] | null>(
     (best, s) => (!best || s.pace < best.pace ? s : best),
     null,
   );
 
-  const handleDone = () => {
+  const handleDone = async () => {
+    // If auto-sync is on and not yet synced, do it silently before leaving
+    if (autoSyncAfterRun && healthSyncEnabled && !healthSynced) {
+      await syncToHealth(true);
+    }
+    // Post-run notification
+    if (distanceM > 100) {
+      await notificationService.showRunCompleteNotification(
+        distanceM / 1000,
+        formatPace(avgPaceSecPerKm)
+      );
+    }
     reset();
     router.replace('/(tabs)');
   };
@@ -38,6 +56,44 @@ export default function SummaryScreen() {
     // TODO: upload via backend /strava/upload once implemented
     handleDone();
   };
+
+  async function syncToHealth(silent = false) {
+    setHealthSyncing(true);
+    try {
+      const now = new Date();
+      const startTime =
+        startedAt != null
+          ? new Date(startedAt)
+          : new Date(now.getTime() - elapsedSec * 1000);
+      await healthService.syncWorkout({
+        startTime,
+        endTime: now,
+        distanceMeters: distanceM,
+        durationSeconds: elapsedSec,
+        avgPaceSecPerKm,
+        elevationGain,
+        splits,
+      });
+      setHealthSynced(true);
+      if (!silent) {
+        Alert.alert(
+          `Salvo no ${healthService.getPlatformName()}`,
+          'Distância, tempo e calorias foram sincronizados.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (err: any) {
+      if (!silent) {
+        Alert.alert(
+          'Erro ao sincronizar',
+          err?.message ?? 'Não foi possível salvar no app de saúde.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setHealthSyncing(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -187,6 +243,39 @@ export default function SummaryScreen() {
             onPress={handleUploadStrava}
             leftIcon={<Ionicons name="logo-strava" size={16} color={Colors.strava} />}
           />
+
+          {/* Apple Health / Google Health button — visible when sync is enabled */}
+          {healthSyncEnabled && !healthSynced && (
+            <Button
+              label={
+                healthSyncing
+                  ? `Salvando...`
+                  : `Salvar no ${healthService.getPlatformName()}`
+              }
+              variant="outlined"
+              size="md"
+              fullWidth
+              disabled={healthSyncing}
+              onPress={() => syncToHealth(false)}
+              leftIcon={
+                <Ionicons
+                  name={Platform.OS === 'ios' ? 'heart' : 'fitness'}
+                  size={16}
+                  color="#FF375F"
+                />
+              }
+            />
+          )}
+
+          {healthSynced && (
+            <View style={styles.healthSyncedRow}>
+              <Ionicons name="checkmark-circle" size={16} color={Colors.primary} />
+              <Text variant="caption" color={Colors.primary}>
+                Salvo no {healthService.getPlatformName()}
+              </Text>
+            </View>
+          )}
+
           <Button
             label="Salvar e concluir"
             variant="primary"
@@ -346,5 +435,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: Colors.borderSubtle,
     backgroundColor: Colors.background,
+  },
+  healthSyncedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: Spacing.xs,
   },
 });
