@@ -1,5 +1,5 @@
 {
-  "name": "pacepro",
+  "name": "vincere",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
@@ -22,6 +22,9 @@
     "expo-blur": "~14.0.1",
     "expo-haptics": "~14.0.0",
     "expo-constants": "~17.0.3",
+    "expo-splash-screen": "~0.29.18",
+    "@expo-google-fonts/space-grotesk": "^0.2.3",
+    "@expo-google-fonts/inter": "^0.2.3",
     "react": "18.3.2",
     "react-native": "0.76.5",
     "react-native-reanimated": "~3.16.1",
@@ -37,7 +40,6 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
-    "@types/react-native": "~0.76.3",
     "typescript": "^5.3.3"
   },
   "private": true

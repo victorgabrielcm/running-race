@@ -1,26 +1,27 @@
 {
   "expo": {
-    "name": "PacePro",
-    "slug": "pacepro",
+    "name": "Vincere",
+    "slug": "vincere",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "pacepro",
+    "scheme": "vincere",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0A0A0F"
+      "backgroundColor": "#0A0A0A"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pacepro.app",
+      "bundleIdentifier": "com.vincere.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "PacePro uses your location to track runs.",
-        "NSLocationAlwaysUsageDescription": "PacePro uses your location to track runs in background.",
-        "NSHealthShareUsageDescription": "PacePro reads health data to improve your training.",
-        "NSHealthUpdateUsageDescription": "PacePro writes workout data to Apple Health."
+        "NSLocationWhenInUseUsageDescription": "Vincere uses your location to track runs.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Vincere uses your location to track runs in background.",
+        "NSHealthShareUsageDescription": "Vincere reads health data to personalize your training.",
+        "NSHealthUpdateUsageDescription": "Vincere writes workout data to Apple Health.",
+        "NSMotionUsageDescription": "Vincere uses motion data to analyze your running form."
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -29,13 +30,14 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0A0A0F"
+        "backgroundColor": "#0A0A0A"
       },
-      "package": "com.pacepro.app",
+      "package": "com.vincere.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACTIVITY_RECOGNITION"
+        "ACTIVITY_RECOGNITION",
+        "FOREGROUND_SERVICE"
       ]
     },
     "web": {
@@ -46,12 +48,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      [
-        "expo-font",
-        {
-          "fonts": []
-        }
-      ]
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
@@ -59,7 +56,9 @@
     "extra": {
       "eas": {
         "projectId": "your-eas-project-id"
-      }
+      },
+      "apiUrl": "http://localhost:8000",
+      "stravaClientId": "216298"
     }
   }
 }
