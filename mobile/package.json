@@ -23,6 +23,9 @@
     "expo-haptics": "~14.0.0",
     "expo-constants": "~17.0.3",
     "expo-splash-screen": "~0.29.18",
+    "expo-location": "~18.0.4",
+    "expo-task-manager": "~12.0.3",
+    "expo-keep-awake": "~14.0.1",
     "@expo-google-fonts/space-grotesk": "^0.2.3",
     "@expo-google-fonts/inter": "^0.2.3",
     "react": "18.3.2",
@@ -33,6 +36,7 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-chart-kit": "^6.12.0",
+    "react-native-maps": "1.18.0",
     "zustand": "^4.5.5",
     "axios": "^1.7.9",
     "@expo/vector-icons": "^14.0.4"

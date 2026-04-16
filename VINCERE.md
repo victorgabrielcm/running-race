@@ -123,10 +123,16 @@ eas submit --platform android
 - [x] Nutrição diária baseada em carga
 - [x] Evolução com gráficos + PRs
 - [x] Insights automáticos do Coach IA
+- [x] **GPS tracking in-app** (corrida nativa com background)
+- [x] Tela de corrida ativa (distância, tempo, pace atual, pace médio, elevação)
+- [x] Parciais automáticas por km
+- [x] Resumo pós-treino
 
 ### Próximas fases
-- [ ] GPS tracking in-app
-- [ ] Notificações push
+- [ ] Upload de treino do VINCERE para o Strava
+- [ ] Mapa da rota (MapView com polyline)
+- [ ] Áudio coach (avisos a cada km, pace alvo)
+- [ ] Notificações push (lembretes de treino, insights)
 - [ ] Apple Health / Google Fit sync
 - [ ] Integração Garmin / Polar
 - [ ] Análise de biomecânica (câmera)

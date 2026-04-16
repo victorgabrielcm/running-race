@@ -106,8 +106,15 @@ export default function OnboardingScreen() {
               fullWidth
               disabled={!request}
               onPress={() => promptAsync()}
-              leftIcon={<Ionicons name="fitness" size={18} color={Colors.textInverse} />}
+              leftIcon={<Ionicons name="logo-strava" size={18} color={Colors.textInverse} />}
             />
+
+            <View style={styles.howItWorks}>
+              <Ionicons name="shield-checkmark" size={14} color={Colors.primary} />
+              <Text variant="caption" color={Colors.textSecondary} style={{ flex: 1 }}>
+                Seguro. Abrimos o Strava pra você autorizar — nada de senha no Vincere.
+              </Text>
+            </View>
 
             <Text
               variant="caption"
@@ -229,5 +236,16 @@ const styles = StyleSheet.create({
   legal: {
     textAlign: 'center',
     marginTop: Spacing.xs,
+  },
+  howItWorks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary + '30',
   },
 });

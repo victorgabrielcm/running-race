@@ -17,11 +17,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.vincere.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Vincere uses your location to track runs.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Vincere uses your location to track runs in background.",
-        "NSHealthShareUsageDescription": "Vincere reads health data to personalize your training.",
-        "NSHealthUpdateUsageDescription": "Vincere writes workout data to Apple Health.",
-        "NSMotionUsageDescription": "Vincere uses motion data to analyze your running form."
+        "NSLocationWhenInUseUsageDescription": "O Vincere usa sua localização para gravar suas corridas.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "O Vincere usa sua localização em segundo plano para gravar suas corridas sem interrupção.",
+        "NSLocationAlwaysUsageDescription": "O Vincere usa sua localização em segundo plano para gravar suas corridas sem interrupção.",
+        "NSHealthShareUsageDescription": "O Vincere lê dados de saúde para personalizar seu treinamento.",
+        "NSHealthUpdateUsageDescription": "O Vincere grava treinos no Apple Health.",
+        "NSMotionUsageDescription": "O Vincere usa dados de movimento para analisar sua forma de corrida.",
+        "UIBackgroundModes": ["location", "fetch"]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -36,8 +38,11 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
         "ACTIVITY_RECOGNITION",
-        "FOREGROUND_SERVICE"
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "WAKE_LOCK"
       ]
     },
     "web": {
@@ -48,7 +53,13 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permita o Vincere acessar sua localização para gravar suas corridas."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

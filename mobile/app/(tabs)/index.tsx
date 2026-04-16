@@ -12,6 +12,7 @@ import { MetricCard } from '@/components/MetricCard';
 import { WorkoutCard } from '@/components/WorkoutCard';
 import { AIInsightCard } from '@/components/AIInsightCard';
 import { ActivityRow } from '@/components/ActivityRow';
+import { StartRunFAB } from '@/components/StartRunFAB';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
 import { greeting, formatDistance, formatPace, formatDurationHuman } from '@/utils/format';
@@ -262,6 +263,8 @@ export default function DashboardScreen() {
 
           <View style={{ height: 120 }} />
         </ScrollView>
+
+        <StartRunFAB />
       </SafeAreaView>
     </View>
   );
