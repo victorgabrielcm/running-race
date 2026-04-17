@@ -32,7 +32,7 @@
     "react-native-health-connect": "^3.1.0",
     "@expo-google-fonts/space-grotesk": "^0.2.3",
     "@expo-google-fonts/inter": "^0.2.3",
-    "react": "18.3.2",
+    "react": "18.3.1",
     "react-native": "0.76.5",
     "react-native-reanimated": "~3.16.1",
     "react-native-gesture-handler": "~2.20.2",
