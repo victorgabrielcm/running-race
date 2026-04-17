@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import { useAuthStore } from '@/stores/authStore';
 
 const API_URL =
+  process.env.EXPO_PUBLIC_API_URL ??
   (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
   'http://localhost:8000';
 

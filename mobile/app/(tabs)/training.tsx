@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -9,6 +9,8 @@ import { Text } from '@/components/ui/Text';
 import { WorkoutCard } from '@/components/WorkoutCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useTrainingStore } from '@/stores/trainingStore';
+import { useAuthStore } from '@/stores/authStore';
+import { generateTrainingPlan } from '@/services/coach';
 import { mockPlan } from '@/mock/data';
 import { formatDurationHuman } from '@/utils/format';
 
@@ -16,8 +18,29 @@ const weekdays = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
 
 export default function TrainingScreen() {
   const plan = useTrainingStore((s) => s.plan) ?? mockPlan;
+  const setPlan = useTrainingStore((s) => s.setPlan);
+  const user = useAuthStore((s) => s.user);
   const currentWeek = plan.weeks[0];
   const [selectedDay, setSelectedDay] = useState(0);
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerateWeek = async () => {
+    const goal = user?.mainGoal;
+    if (!goal) {
+      Alert.alert('Meta não configurada', 'Configure sua meta principal nas configurações para gerar um plano personalizado.');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const newPlan = await generateTrainingPlan(goal);
+      setPlan(newPlan);
+      Alert.alert('Plano atualizado!', 'Sua próxima semana foi gerada com base nos seus treinos recentes.');
+    } catch {
+      Alert.alert('Ops!', 'Não foi possível gerar o plano agora. Verifique sua conexão ou tente novamente.');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const phaseLabel: Record<string, string> = {
     base: 'BASE AERÓBICA',
@@ -182,19 +205,27 @@ export default function TrainingScreen() {
 
         {/* AI adjustment CTA */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)}>
-          <Pressable style={styles.aiCta}>
+          <Pressable
+            style={[styles.aiCta, generating && { opacity: 0.6 }]}
+            onPress={handleGenerateWeek}
+            disabled={generating}
+          >
             <View style={styles.aiIcon}>
-              <Ionicons name="sparkles" size={18} color={Colors.primary} />
+              {generating ? (
+                <ActivityIndicator size="small" color={Colors.primary} />
+              ) : (
+                <Ionicons name="sparkles" size={18} color={Colors.primary} />
+              )}
             </View>
             <View style={{ flex: 1 }}>
               <Text variant="bodyMedium" color={Colors.textPrimary}>
-                Gerar próxima semana com IA
+                {generating ? 'Gerando plano...' : 'Gerar próxima semana com IA'}
               </Text>
               <Text variant="caption" color={Colors.textSecondary}>
                 Claude analisa seus últimos treinos e monta os próximos 7 dias.
               </Text>
             </View>
-            <Ionicons name="arrow-forward" size={18} color={Colors.primary} />
+            {!generating && <Ionicons name="arrow-forward" size={18} color={Colors.primary} />}
           </Pressable>
         </Animated.View>
 
