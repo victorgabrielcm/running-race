@@ -6,6 +6,7 @@ import {
   Dimensions,
   ImageBackground,
   Pressable,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,8 +17,9 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Colors, Spacing, BRAND } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { useStravaAuthRequest, exchangeStravaCode } from '@/services/strava';
+import { useStravaAuthRequest, exchangeStravaCode, fetchRecentActivities } from '@/services/strava';
 import { useAuthStore } from '@/stores/authStore';
+import { useTrainingStore } from '@/stores/trainingStore';
 
 const { height } = Dimensions.get('window');
 
@@ -26,6 +28,7 @@ export default function OnboardingScreen() {
   const { request, response, promptAsync, redirectUri } = useStravaAuthRequest();
   const setTokens = useAuthStore((s) => s.setTokens);
   const setUser = useAuthStore((s) => s.setUser);
+  const setActivities = useTrainingStore((s) => s.setActivities);
 
   useEffect(() => {
     const handle = async () => {
@@ -33,14 +36,32 @@ export default function OnboardingScreen() {
         try {
           const tokens = await exchangeStravaCode(response.params.code, redirectUri);
           await setTokens(tokens);
+          // Eagerly pull the athlete's recent activities so the app has real
+          // data the moment the user lands on the dashboard.
+          try {
+            const activities = await fetchRecentActivities();
+            setActivities(activities);
+          } catch (syncErr) {
+            console.warn('[strava] initial sync failed — will retry on dashboard', syncErr);
+          }
           router.replace('/(auth)/goal');
-        } catch (err) {
-          console.error('[strava] exchange failed', err);
+        } catch (err: any) {
+          const detail =
+            err?.response?.data?.detail ??
+            err?.message ??
+            'Não foi possível conectar ao Strava.';
+          console.error('[strava] exchange failed', err?.response?.data ?? err);
+          Alert.alert(
+            'Erro ao conectar',
+            `${detail}\n\nVerifique se o backend está rodando e as credenciais STRAVA_CLIENT_SECRET estão configuradas em backend/.env.`,
+          );
         }
+      } else if (response?.type === 'error') {
+        Alert.alert('Autorização cancelada', 'Você pode tentar de novo quando quiser.');
       }
     };
     handle();
-  }, [response, redirectUri, router, setTokens]);
+  }, [response, redirectUri, router, setTokens, setActivities]);
 
   // Dev-only shortcut — bypasses Strava + backend and drops into the app
   // with a fully onboarded demo user. Hidden in production builds.

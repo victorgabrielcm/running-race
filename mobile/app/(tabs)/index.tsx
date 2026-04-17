@@ -197,25 +197,27 @@ export default function DashboardScreen() {
             <WorkoutCard workout={todayWorkout} variant="today" />
           </Animated.View>
 
-          {hasRealData && (
-            <Animated.View entering={FadeInDown.duration(500).delay(300)}>
-              <View style={styles.sectionHeader}>
-                <Text variant="label" color={Colors.textSecondary} tracking="wider">
-                  ATIVIDADES RECENTES
+          <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+            <View style={styles.sectionHeader}>
+              <Text variant="label" color={Colors.textSecondary} tracking="wider">
+                ATIVIDADES RECENTES
+              </Text>
+              <Pressable onPress={() => router.push('/activities')}>
+                <Text variant="caption" color={Colors.primary} weight="semibold">
+                  Ver tudo
                 </Text>
-                <Pressable>
-                  <Text variant="caption" color={Colors.primary} weight="semibold">
-                    Ver tudo
-                  </Text>
-                </Pressable>
-              </View>
-              <View style={styles.activityList}>
-                {recentActivities.slice(0, 3).map((a) => (
-                  <ActivityRow key={a.id} activity={a} />
-                ))}
-              </View>
-            </Animated.View>
-          )}
+              </Pressable>
+            </View>
+            <View style={styles.activityList}>
+              {recentActivities.slice(0, 3).map((a) => (
+                <ActivityRow
+                  key={a.id}
+                  activity={a}
+                  onPress={() => router.push('/activities')}
+                />
+              ))}
+            </View>
+          </Animated.View>
 
           <View style={{ height: 120 }} />
         </ScrollView>
