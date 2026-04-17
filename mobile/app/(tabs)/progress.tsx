@@ -17,14 +17,14 @@ const { width } = Dimensions.get('window');
 
 export default function ProgressScreen() {
   const user = useAuthStore((s) => s.user);
-  const goal = user?.mainGoal ?? mockPlan && {
+  const goal = user?.mainGoal ?? (mockPlan && {
     id: 'mock',
     type: '42k' as const,
     raceName: 'Maratona Internacional SP',
     targetDate: new Date(Date.now() + 70 * 86400000).toISOString(),
     isActive: true,
     createdAt: new Date().toISOString(),
-  };
+  });
 
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
