@@ -25,8 +25,9 @@ export default function DashboardScreen() {
   const activities = useTrainingStore((s) => s.activities);
   const plan = useTrainingStore((s) => s.plan);
 
-  // Fallback to mock data during development
-  const recentActivities = activities.length > 0 ? activities : mockActivities;
+  // Real data when available; falls back to mock while Strava hasn't synced yet
+  const hasRealData = activities.length > 0;
+  const recentActivities = hasRealData ? activities : mockActivities;
   const todayWorkout = plan?.weeks[0]?.workouts[0] ?? mockPlan.weeks[0].workouts[0];
   const weekStats = mockWeeklyStats;
 
@@ -112,6 +113,22 @@ export default function DashboardScreen() {
               </View>
             </View>
           </Animated.View>
+
+          {/* Demo data banner — shown while Strava hasn't synced yet */}
+          {!hasRealData && (
+            <Animated.View entering={FadeInDown.duration(400).delay(80)}>
+              <Pressable
+                style={styles.demoBanner}
+                onPress={() => router.push('/run')}
+              >
+                <Ionicons name="information-circle-outline" size={16} color={Colors.tertiary} />
+                <Text variant="caption" color={Colors.tertiary} style={{ flex: 1 }}>
+                  Dados de demonstração. Sincronize o Strava ou faça sua primeira corrida para ver seus dados reais.
+                </Text>
+                <Ionicons name="play-circle" size={20} color={Colors.primary} />
+              </Pressable>
+            </Animated.View>
+          )}
 
           {/* Last Run Performance — matches mockup card */}
           {lastRun ? (
@@ -250,17 +267,37 @@ export default function DashboardScreen() {
               <Text variant="label" color={Colors.textSecondary} tracking="wider">
                 ATIVIDADES RECENTES
               </Text>
-              <Pressable>
-                <Text variant="caption" color={Colors.primary} weight="semibold">
-                  Ver tudo
+              {hasRealData && (
+                <Pressable>
+                  <Text variant="caption" color={Colors.primary} weight="semibold">
+                    Ver tudo
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+            {hasRealData ? (
+              <View style={styles.activityList}>
+                {recentActivities.slice(0, 4).map((a) => (
+                  <ActivityRow key={a.id} activity={a} />
+                ))}
+              </View>
+            ) : (
+              <Pressable style={styles.emptyState} onPress={() => router.push('/run')}>
+                <Ionicons name="footsteps-outline" size={32} color={Colors.textTertiary} />
+                <Text variant="bodyMedium" color={Colors.textSecondary} style={{ marginTop: 8 }}>
+                  Nenhuma atividade ainda
                 </Text>
+                <Text variant="caption" color={Colors.textTertiary} style={{ textAlign: 'center', marginTop: 4 }}>
+                  Conecte o Strava ou faça sua primeira corrida pelo VINCERE
+                </Text>
+                <View style={styles.emptyBtn}>
+                  <Ionicons name="play" size={14} color={Colors.textInverse} />
+                  <Text variant="label" color={Colors.textInverse} tracking="wider">
+                    CORRER AGORA
+                  </Text>
+                </View>
               </Pressable>
-            </View>
-            <View style={styles.activityList}>
-              {recentActivities.slice(0, 4).map((a) => (
-                <ActivityRow key={a.id} activity={a} />
-              ))}
-            </View>
+            )}
           </Animated.View>
 
           <View style={{ height: 120 }} />
@@ -428,5 +465,34 @@ const styles = StyleSheet.create({
   },
   activityList: {
     gap: Spacing.sm,
+  },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.tertiary + '15',
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.tertiary + '30',
+  },
+  emptyState: {
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: Radius.xxl,
+    padding: Spacing.xxl,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    gap: 0,
+  },
+  emptyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    marginTop: Spacing.base,
   },
 });

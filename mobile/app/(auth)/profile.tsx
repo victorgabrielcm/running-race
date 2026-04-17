@@ -50,6 +50,9 @@ export default function ProfileSetupScreen() {
       trainingDaysPerWeek: days,
       onboarded: true,
     });
+    // Belt-and-suspenders: _layout.tsx also handles this redirect via isAuthenticated,
+    // but explicit navigate ensures no timing edge case on slower devices.
+    router.replace('/(tabs)');
   };
 
   return (

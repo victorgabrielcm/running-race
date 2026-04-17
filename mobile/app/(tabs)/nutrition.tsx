@@ -43,6 +43,14 @@ export default function NutritionScreen() {
           </Text>
         </Animated.View>
 
+        {/* Demo data notice */}
+        <Animated.View entering={FadeIn.duration(400).delay(100)} style={styles.demoBanner}>
+          <Ionicons name="sparkles" size={16} color={Colors.tertiary} />
+          <Text variant="caption" color={Colors.tertiary} style={{ flex: 1 }}>
+            Plano de exemplo baseado em carga moderada. Em breve: cardápio personalizado pelo Coach IA com base nos seus treinos reais.
+          </Text>
+        </Animated.View>
+
         {/* Load badge + calories */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.heroCard}>
           <View style={styles.heroHeader}>
@@ -241,6 +249,16 @@ function TimingCard({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  demoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: Colors.tertiary + '15',
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.tertiary + '30',
+  },
   content: {
     paddingHorizontal: Spacing.screen,
     paddingTop: Spacing.base,

@@ -53,8 +53,11 @@ export default function SummaryScreen() {
   };
 
   const handleUploadStrava = () => {
-    // TODO: upload via backend /strava/upload once implemented
-    handleDone();
+    Alert.alert(
+      'Em breve!',
+      'O upload direto para o Strava está chegando na próxima atualização. Por enquanto, seu treino fica salvo no VINCERE e você pode importar pelo Strava Connect.',
+      [{ text: 'Entendido' }]
+    );
   };
 
   async function syncToHealth(silent = false) {

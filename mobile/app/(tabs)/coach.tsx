@@ -30,6 +30,7 @@ export default function CoachScreen() {
   const [messages, setMessages] = useState<CoachMessage[]>(mockCoachMessages);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [coachOnline, setCoachOnline] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
 
   const send = async (text?: string) => {
@@ -50,14 +51,14 @@ export default function CoachScreen() {
       const reply = await sendCoachMessage(content, messages);
       setMessages((prev) => [...prev, reply]);
     } catch {
-      // Fallback when backend is unreachable during development
+      setCoachOnline(false);
       setMessages((prev) => [
         ...prev,
         {
           id: `a_${Date.now()}`,
           role: 'assistant',
           content:
-            'Não consegui me conectar ao coach agora. Confirme se o backend está rodando (vincere-backend) e tente novamente.',
+            'Ops, não consegui conectar agora. Pode ser instabilidade momentânea — tente de novo em instantes. Se o problema continuar, verifique sua conexão com a internet.',
           timestamp: new Date().toISOString(),
         },
       ]);
@@ -83,10 +84,10 @@ export default function CoachScreen() {
             </Text>
           </View>
         </View>
-        <View style={styles.onlineBadge}>
-          <View style={styles.onlineDot} />
-          <Text variant="label" color={Colors.primary} tracking="wider">
-            ONLINE
+        <View style={[styles.onlineBadge, !coachOnline && styles.offlineBadge]}>
+          <View style={[styles.onlineDot, !coachOnline && { backgroundColor: Colors.secondary }]} />
+          <Text variant="label" color={coachOnline ? Colors.primary : Colors.secondary} tracking="wider">
+            {coachOnline ? 'ONLINE' : 'OFFLINE'}
           </Text>
         </View>
       </View>
@@ -226,6 +227,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     backgroundColor: Colors.primaryMuted,
     borderRadius: Radius.pill,
+  },
+  offlineBadge: {
+    backgroundColor: Colors.secondary + '20',
   },
   onlineDot: {
     width: 6,
