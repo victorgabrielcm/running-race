@@ -102,7 +102,7 @@ export default function ProgressScreen() {
             </View>
             <LineChart
               data={weekData}
-              width={width - Spacing.screen * 2 - Spacing.xl * 2}
+              width={width - Spacing.screen * 2 - Spacing.md * 2}
               height={180}
               chartConfig={chartConfig}
               bezier

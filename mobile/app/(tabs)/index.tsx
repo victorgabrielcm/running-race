@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View, RefreshControl, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 
-import { Colors, Spacing, Radius, BRAND } from '@/theme';
+import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { WorkoutCard } from '@/components/WorkoutCard';
@@ -15,14 +15,35 @@ import { ActivityRow } from '@/components/ActivityRow';
 import { StartRunFAB } from '@/components/StartRunFAB';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
+import { fetchRecentActivities } from '@/services/strava';
 import { greeting, formatDistance, formatPace, formatDurationHuman } from '@/utils/format';
 import { mockActivities, mockPlan, mockInsight, mockWeeklyStats } from '@/mock/data';
 
 export default function DashboardScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const tokens = useAuthStore((s) => s.tokens);
   const activities = useTrainingStore((s) => s.activities);
+  const setActivities = useTrainingStore((s) => s.setActivities);
   const plan = useTrainingStore((s) => s.plan);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const syncStrava = async () => {
+    if (!tokens || tokens.access_token === 'demo-access-token') return;
+    try {
+      setRefreshing(true);
+      const fresh = await fetchRecentActivities();
+      setActivities(fresh);
+    } catch (err) {
+      console.warn('[strava sync] failed', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activities.length === 0) syncStrava();
+  }, []);
 
   const hasRealData = activities.length > 0;
   const recentActivities = hasRealData ? activities : mockActivities;
@@ -49,7 +70,13 @@ export default function DashboardScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={false} tintColor={Colors.primary} />}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={syncStrava}
+              tintColor={Colors.primary}
+            />
+          }
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
             <View style={styles.headerLeft}>

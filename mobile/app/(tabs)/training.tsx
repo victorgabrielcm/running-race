@@ -188,10 +188,10 @@ export default function TrainingScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text variant="bodyMedium" color={Colors.textPrimary}>
-                Ajustar próxima semana com IA
+                Gerar próxima semana com IA
               </Text>
               <Text variant="caption" color={Colors.textSecondary}>
-                Claude analisa seus últimos treinos e recalibra o plano.
+                Claude analisa seus últimos treinos e monta os próximos 7 dias.
               </Text>
             </View>
             <Ionicons name="arrow-forward" size={18} color={Colors.primary} />
