@@ -5,6 +5,7 @@ import {
   Image,
   Dimensions,
   ImageBackground,
+  Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,6 +25,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { request, response, promptAsync, redirectUri } = useStravaAuthRequest();
   const setTokens = useAuthStore((s) => s.setTokens);
+  const setUser = useAuthStore((s) => s.setUser);
 
   useEffect(() => {
     const handle = async () => {
@@ -39,6 +41,44 @@ export default function OnboardingScreen() {
     };
     handle();
   }, [response, redirectUri, router, setTokens]);
+
+  // Dev-only shortcut — bypasses Strava + backend and drops into the app
+  // with a fully onboarded demo user. Hidden in production builds.
+  const handleDemoMode = async () => {
+    await setTokens({
+      access_token: 'demo-access-token',
+      refresh_token: 'demo-refresh-token',
+      expires_at: Math.floor(Date.now() / 1000) + 6 * 3600,
+      athlete: {
+        id: 99999,
+        firstname: 'Victor',
+        lastname: 'Demo',
+        profile: '',
+        profile_medium: '',
+        measurement_preference: 'meters',
+        date_preference: '',
+      } as any,
+    });
+    await setUser({
+      stravaId: 99999,
+      name: 'Victor Demo',
+      avatar: '',
+      weight: 72,
+      height: 178,
+      age: 30,
+      weeklyGoalKm: 50,
+      trainingDaysPerWeek: 4,
+      fitnessLevel: 'intermediate',
+      mainGoal: {
+        id: 'demo-goal',
+        type: '21k',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+      onboarded: true,
+    });
+    router.replace('/(tabs)');
+  };
 
   return (
     <View style={styles.container}>
@@ -115,6 +155,17 @@ export default function OnboardingScreen() {
                 Seguro. Abrimos o Strava pra você autorizar — nada de senha no Vincere.
               </Text>
             </View>
+
+            {/* Dev-only demo mode bypass — only renders in development builds */}
+            {__DEV__ && (
+              <Pressable onPress={handleDemoMode} style={styles.demoButton}>
+                <Ionicons name="flask-outline" size={16} color={Colors.tertiary} />
+                <Text variant="caption" color={Colors.tertiary} weight="semibold" tracking="wider">
+                  MODO DEMO (só dev) — pular Strava
+                </Text>
+                <Ionicons name="arrow-forward" size={14} color={Colors.tertiary} />
+              </Pressable>
+            )}
 
             <Text
               variant="caption"
@@ -247,5 +298,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.primary + '30',
+  },
+  demoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.tertiary + '40',
+    borderStyle: 'dashed',
   },
 });
