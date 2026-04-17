@@ -39,6 +39,11 @@ export default function TrainingScreen() {
   const completed = currentWeek.workouts.filter((w) => w.completed).length;
   const weekProgress = completed / totalWorkouts;
 
+  const today = new Date();
+  const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() + mondayOffset);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -98,17 +103,6 @@ export default function TrainingScreen() {
                 </Text>
               </Text>
             </View>
-            <View style={styles.summaryItem}>
-              <Text variant="label" color={Colors.textSecondary} tracking="wider">
-                CARGA
-              </Text>
-              <Text variant="metric" color={Colors.textPrimary}>
-                420
-                <Text variant="body" color={Colors.textSecondary}>
-                  {' '}TSS
-                </Text>
-              </Text>
-            </View>
           </View>
           <View style={{ marginTop: Spacing.lg }}>
             <ProgressBar value={weekProgress} color={Colors.primary} height={6} />
@@ -125,6 +119,8 @@ export default function TrainingScreen() {
               const workout = currentWeek.workouts[idx];
               const hasWorkout = !!workout && workout.type !== 'rest';
               const active = selectedDay === idx;
+              const cellDate = new Date(weekStart);
+              cellDate.setDate(weekStart.getDate() + idx);
               return (
                 <Pressable
                   key={day}
@@ -143,7 +139,7 @@ export default function TrainingScreen() {
                     color={active ? Colors.textInverse : Colors.textPrimary}
                     style={{ marginTop: 4 }}
                   >
-                    {idx + 15}
+                    {cellDate.getDate()}
                   </Text>
                   <View
                     style={[

@@ -3,35 +3,19 @@ import { Tabs } from 'expo-router';
 import { View, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing } from '@/theme';
-import { Text } from '@/components/ui/Text';
+import { Colors } from '@/theme';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-function TabIcon({
-  name,
-  focused,
-  label,
-}: {
-  name: IconName;
-  focused: boolean;
-  label: string;
-}) {
+function TabIcon({ name, focused }: { name: IconName; focused: boolean }) {
   return (
     <View style={[styles.tabItem, focused && styles.tabItemFocused]}>
       <Ionicons
         name={name}
-        size={focused ? 22 : 20}
+        size={26}
         color={focused ? Colors.primary : Colors.textTertiary}
       />
-      <Text
-        variant="label"
-        color={focused ? Colors.primary : Colors.textTertiary}
-        tracking="wider"
-        style={styles.tabLabel}
-      >
-        {label}
-      </Text>
+      {focused && <View style={styles.activeDot} />}
     </View>
   );
 }
@@ -55,7 +39,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="home" focused={focused} label="HOME" />
+            <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} />
           ),
         }}
       />
@@ -63,7 +47,7 @@ export default function TabsLayout() {
         name="training"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="calendar" focused={focused} label="PLANO" />
+            <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} />
           ),
         }}
       />
@@ -71,7 +55,7 @@ export default function TabsLayout() {
         name="coach"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="sparkles" focused={focused} label="COACH" />
+            <TabIcon name={focused ? 'sparkles' : 'sparkles-outline'} focused={focused} />
           ),
         }}
       />
@@ -79,7 +63,7 @@ export default function TabsLayout() {
         name="nutrition"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="nutrition" focused={focused} label="NUTRIÇÃO" />
+            <TabIcon name={focused ? 'nutrition' : 'nutrition-outline'} focused={focused} />
           ),
         }}
       />
@@ -87,7 +71,7 @@ export default function TabsLayout() {
         name="progress"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon name="stats-chart" focused={focused} label="EVOLUÇÃO" />
+            <TabIcon name={focused ? 'stats-chart' : 'stats-chart-outline'} focused={focused} />
           ),
         }}
       />
@@ -98,9 +82,9 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   tabBar: {
     position: 'absolute',
-    height: 76,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-    paddingTop: 10,
+    height: Platform.OS === 'ios' ? 84 : 68,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    paddingTop: 12,
     backgroundColor: 'transparent',
     borderTopWidth: 1,
     borderTopColor: Colors.borderSubtle,
@@ -112,11 +96,11 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 4,
   },
-  tabItemFocused: {
-    // focused state
-  },
-  tabLabel: {
-    fontSize: 9,
-    letterSpacing: 1.2,
+  tabItemFocused: {},
+  activeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
   },
 });

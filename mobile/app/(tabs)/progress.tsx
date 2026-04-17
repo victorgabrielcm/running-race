@@ -77,29 +77,9 @@ export default function ProgressScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Fitness Metrics */}
         <Animated.View entering={FadeInDown.duration(500).delay(150)}>
-          <Text
-            variant="label"
-            color={Colors.textSecondary}
-            tracking="wider"
-            style={styles.sectionLabel}
-          >
-            MÉTRICAS DE FITNESS
-          </Text>
           <View style={styles.metricsGrid}>
-            <MetricCard label="CTL (FITNESS)" value="65" icon="fitness" trend="up" trendValue="+8%" />
-            <MetricCard
-              label="ATL (FADIGA)"
-              value="58"
-              accent={Colors.secondary}
-              icon="pulse"
-              trend="up"
-              trendValue="+2%"
-            />
-          </View>
-          <View style={styles.metricsGrid}>
-            <MetricCard label="TSB (FORMA)" value="+7" icon="trending-up" trend="up" trendValue="Descansado" />
+            <MetricCard label="FORMA" value="+7" icon="trending-up" trend="up" trendValue="Descansado" />
             <MetricCard
               label="VO2 MAX"
               value="52"
@@ -117,14 +97,8 @@ export default function ProgressScreen() {
           <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
               <Text variant="label" color={Colors.textSecondary} tracking="wider">
-                VOLUME SEMANAL
+                VOLUME SEMANAL (KM)
               </Text>
-              <View style={styles.legendRow}>
-                <View style={[styles.legendDot, { backgroundColor: Colors.primary }]} />
-                <Text variant="caption" color={Colors.textSecondary}>
-                  Km / semana
-                </Text>
-              </View>
             </View>
             <LineChart
               data={weekData}
@@ -147,12 +121,6 @@ export default function ProgressScreen() {
               <Text variant="label" color={Colors.textSecondary} tracking="wider">
                 PACE MÉDIO (SEG/KM)
               </Text>
-              <View style={styles.legendRow}>
-                <Ionicons name="trending-down" size={14} color={Colors.primary} />
-                <Text variant="caption" color={Colors.primary} weight="semibold">
-                  -28s em 6 semanas
-                </Text>
-              </View>
             </View>
             <LineChart
               data={paceData}

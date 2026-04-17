@@ -58,7 +58,6 @@ export default function NutritionScreen() {
               CARGA DE HOJE
             </Text>
             <View style={[styles.loadBadge, { borderColor: loadConfig.color + '50' }]}>
-              <View style={[styles.loadDot, { backgroundColor: loadConfig.color }]} />
               <Text variant="label" color={loadConfig.color} tracking="wider">
                 {loadConfig.label}
               </Text>
@@ -128,7 +127,7 @@ export default function NutritionScreen() {
                     {meal.time}
                   </Text>
                   <Text variant="caption" color={Colors.textSecondary}>
-                    {meal.calories} kcal · C{meal.carbs}g · P{meal.protein}g · G{meal.fat}g
+                    {meal.calories} kcal
                   </Text>
                 </View>
                 <Text variant="h3" color={Colors.textPrimary} style={{ marginTop: 4 }}>
@@ -278,15 +277,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: 4,
     borderRadius: Radius.pill,
     borderWidth: 1,
   },
-  loadDot: { width: 6, height: 6, borderRadius: 3 },
   heroValueRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

@@ -20,17 +20,14 @@ import { mockCoachMessages } from '@/mock/data';
 
 const quickActions = [
   { label: 'Analisar último treino', icon: 'analytics' as const },
-  { label: 'Ajustar plano da semana', icon: 'sparkles' as const },
-  { label: 'Que pasta comer hoje?', icon: 'restaurant' as const },
-  { label: 'Por que meu pace caiu?', icon: 'trending-down' as const },
-  { label: 'Hidratação no longão', icon: 'water' as const },
+  { label: 'Ajustar plano', icon: 'sparkles' as const },
+  { label: 'Nutrição de hoje', icon: 'restaurant' as const },
 ];
 
 export default function CoachScreen() {
   const [messages, setMessages] = useState<CoachMessage[]>(mockCoachMessages);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
-  const [coachOnline, setCoachOnline] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
 
   const send = async (text?: string) => {
@@ -51,7 +48,6 @@ export default function CoachScreen() {
       const reply = await sendCoachMessage(content, messages);
       setMessages((prev) => [...prev, reply]);
     } catch {
-      setCoachOnline(false);
       setMessages((prev) => [
         ...prev,
         {
@@ -83,12 +79,6 @@ export default function CoachScreen() {
               Vincere Coach
             </Text>
           </View>
-        </View>
-        <View style={[styles.onlineBadge, !coachOnline && styles.offlineBadge]}>
-          <View style={[styles.onlineDot, !coachOnline && { backgroundColor: Colors.secondary }]} />
-          <Text variant="label" color={coachOnline ? Colors.primary : Colors.secondary} tracking="wider">
-            {coachOnline ? 'ONLINE' : 'OFFLINE'}
-          </Text>
         </View>
       </View>
 
@@ -218,24 +208,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.primary,
-  },
-  onlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: Colors.primaryMuted,
-    borderRadius: Radius.pill,
-  },
-  offlineBadge: {
-    backgroundColor: Colors.secondary + '20',
-  },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.primary,
   },
   chat: {
     padding: Spacing.screen,

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { ScrollView, StyleSheet, View, RefreshControl, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,7 +9,6 @@ import { useRouter } from 'expo-router';
 import { Colors, Spacing, Radius, BRAND } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { MetricCard } from '@/components/MetricCard';
 import { WorkoutCard } from '@/components/WorkoutCard';
 import { AIInsightCard } from '@/components/AIInsightCard';
 import { ActivityRow } from '@/components/ActivityRow';
@@ -25,7 +24,6 @@ export default function DashboardScreen() {
   const activities = useTrainingStore((s) => s.activities);
   const plan = useTrainingStore((s) => s.plan);
 
-  // Real data when available; falls back to mock while Strava hasn't synced yet
   const hasRealData = activities.length > 0;
   const recentActivities = hasRealData ? activities : mockActivities;
   const todayWorkout = plan?.weeks[0]?.workouts[0] ?? mockPlan.weeks[0].workouts[0];
@@ -53,7 +51,6 @@ export default function DashboardScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={false} tintColor={Colors.primary} />}
         >
-          {/* Header with brand + avatar */}
           <Animated.View entering={FadeInDown.duration(400)} style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.avatar}>
@@ -68,17 +65,11 @@ export default function DashboardScreen() {
                 </Text>
               </View>
             </View>
-            <View style={styles.headerRight}>
-              <Text variant="label" color={Colors.primary} tracking="widest">
-                {BRAND.name}
-              </Text>
-              <Pressable style={styles.iconBtn} onPress={() => router.push('/settings')}>
-                <Ionicons name="settings-outline" size={20} color={Colors.textPrimary} />
-              </Pressable>
-            </View>
+            <Pressable style={styles.iconBtn} onPress={() => router.push('/settings')}>
+              <Ionicons name="settings-outline" size={20} color={Colors.textPrimary} />
+            </Pressable>
           </Animated.View>
 
-          {/* Weekly Volume hero card — mirrors Stitch mockup */}
           <Animated.View entering={FadeInDown.duration(500).delay(100)}>
             <View style={styles.heroCard}>
               <View style={styles.heroHeader}>
@@ -86,7 +77,7 @@ export default function DashboardScreen() {
                   VOLUME DA SEMANA
                 </Text>
                 <Text variant="label" color={Colors.primary} tracking="wider">
-                  {Math.round(weeklyProgress * 100)}% ATINGIDO
+                  {Math.round(weeklyProgress * 100)}%
                 </Text>
               </View>
               <View style={styles.heroValueRow}>
@@ -105,16 +96,10 @@ export default function DashboardScreen() {
                 <MiniStat label="Treinos" value={`${weekStats.runs}/5`} />
                 <View style={styles.divider} />
                 <MiniStat label="Tempo" value={formatDurationHuman(weekStats.duration * 60)} />
-                <View style={styles.divider} />
-                <MiniStat
-                  label="Elevação"
-                  value={`${Math.round(weekStats.elevation)}m`}
-                />
               </View>
             </View>
           </Animated.View>
 
-          {/* Demo data banner — shown while Strava hasn't synced yet */}
           {!hasRealData && (
             <Animated.View entering={FadeInDown.duration(400).delay(80)}>
               <Pressable
@@ -123,14 +108,13 @@ export default function DashboardScreen() {
               >
                 <Ionicons name="information-circle-outline" size={16} color={Colors.tertiary} />
                 <Text variant="caption" color={Colors.tertiary} style={{ flex: 1 }}>
-                  Dados de demonstração. Sincronize o Strava ou faça sua primeira corrida para ver seus dados reais.
+                  Dados de exemplo. Sincronize o Strava ou faça sua primeira corrida.
                 </Text>
                 <Ionicons name="play-circle" size={20} color={Colors.primary} />
               </Pressable>
             </Animated.View>
           )}
 
-          {/* Last Run Performance — matches mockup card */}
           {lastRun ? (
             <Animated.View entering={FadeInDown.duration(500).delay(150)}>
               <Pressable style={styles.lastRunCard}>
@@ -138,17 +122,19 @@ export default function DashboardScreen() {
                   <Text variant="label" color={Colors.textSecondary} tracking="wider">
                     ÚLTIMO TREINO
                   </Text>
-                  <View style={styles.stravaBadge}>
-                    <Ionicons name="logo-strava" size={12} color={Colors.strava} />
-                    <Text
-                      variant="label"
-                      color={Colors.strava}
-                      tracking="wider"
-                      style={{ marginLeft: 4 }}
-                    >
-                      STRAVA
-                    </Text>
-                  </View>
+                  {hasRealData && (
+                    <View style={styles.stravaBadge}>
+                      <Ionicons name="logo-strava" size={12} color={Colors.strava} />
+                      <Text
+                        variant="label"
+                        color={Colors.strava}
+                        tracking="wider"
+                        style={{ marginLeft: 4 }}
+                      >
+                        STRAVA
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.lastRunStats}>
@@ -156,59 +142,27 @@ export default function DashboardScreen() {
                     <Text variant="metricLarge" color={Colors.textPrimary}>
                       {formatDistance(lastRunKm)}
                     </Text>
-                    <Text
-                      variant="label"
-                      color={Colors.textSecondary}
-                      tracking="wider"
-                    >
-                      DISTÂNCIA (KM)
+                    <Text variant="label" color={Colors.textSecondary} tracking="wider">
+                      KM
                     </Text>
                   </View>
                   <View style={styles.lastRunRight}>
-                    <View style={styles.paceCircle}>
-                      <Text variant="metric" color={Colors.textPrimary}>
-                        {formatPace(lastRunPace)}
-                      </Text>
-                      <Text
-                        variant="label"
-                        color={Colors.textSecondary}
-                        tracking="wider"
-                      >
-                        PACE (/KM)
-                      </Text>
-                    </View>
+                    <Text variant="metric" color={Colors.textPrimary}>
+                      {formatPace(lastRunPace)}
+                    </Text>
+                    <Text variant="label" color={Colors.textSecondary} tracking="wider">
+                      PACE /KM
+                    </Text>
                   </View>
-                </View>
-
-                <View style={styles.intensityBar}>
-                  <View
-                    style={[
-                      styles.intensityFill,
-                      {
-                        backgroundColor: Colors.secondary,
-                        width: '82%',
-                      },
-                    ]}
-                  />
-                  <Text
-                    variant="label"
-                    color={Colors.secondary}
-                    tracking="wider"
-                    style={styles.intensityLabel}
-                  >
-                    INTENSIDADE: ALTA
-                  </Text>
                 </View>
               </Pressable>
             </Animated.View>
           ) : null}
 
-          {/* AI Insight */}
           <Animated.View entering={FadeInDown.duration(500).delay(200)}>
             <AIInsightCard insight={mockInsight} />
           </Animated.View>
 
-          {/* Today's Workout */}
           <Animated.View entering={FadeInDown.duration(500).delay(250)}>
             <Text variant="label" color={Colors.textSecondary} tracking="wider" style={styles.sectionLabel}>
               TREINO DE HOJE
@@ -216,89 +170,25 @@ export default function DashboardScreen() {
             <WorkoutCard workout={todayWorkout} variant="today" />
           </Animated.View>
 
-          {/* Metrics row */}
-          <Animated.View entering={FadeInDown.duration(500).delay(300)}>
-            <Text variant="label" color={Colors.textSecondary} tracking="wider" style={styles.sectionLabel}>
-              FITNESS & FORMA
-            </Text>
-            <View style={styles.metricsRow}>
-              <MetricCard
-                label="FORMA (TSB)"
-                value="+8"
-                unit=""
-                icon="pulse"
-                trend="up"
-                trendValue="Descansado"
-              />
-              <MetricCard
-                label="CARGA 7D"
-                value="420"
-                unit="TSS"
-                accent={Colors.secondary}
-                icon="trending-up"
-                trend="up"
-                trendValue="+12%"
-              />
-            </View>
-            <View style={styles.metricsRow}>
-              <MetricCard
-                label="VO2 MAX"
-                value="52"
-                unit="ml/kg"
-                accent={Colors.tertiary}
-                icon="flash"
-                trend="up"
-                trendValue="+0.8"
-              />
-              <MetricCard
-                label="PACE MÉDIO"
-                value={formatPace(weekStats.avgPace)}
-                unit="/km"
-                icon="speedometer"
-                trend="down"
-                trendValue="-6s/km"
-              />
-            </View>
-          </Animated.View>
-
-          {/* Recent activities */}
-          <Animated.View entering={FadeInDown.duration(500).delay(350)}>
-            <View style={styles.sectionHeader}>
-              <Text variant="label" color={Colors.textSecondary} tracking="wider">
-                ATIVIDADES RECENTES
-              </Text>
-              {hasRealData && (
+          {hasRealData && (
+            <Animated.View entering={FadeInDown.duration(500).delay(300)}>
+              <View style={styles.sectionHeader}>
+                <Text variant="label" color={Colors.textSecondary} tracking="wider">
+                  ATIVIDADES RECENTES
+                </Text>
                 <Pressable>
                   <Text variant="caption" color={Colors.primary} weight="semibold">
                     Ver tudo
                   </Text>
                 </Pressable>
-              )}
-            </View>
-            {hasRealData ? (
+              </View>
               <View style={styles.activityList}>
-                {recentActivities.slice(0, 4).map((a) => (
+                {recentActivities.slice(0, 3).map((a) => (
                   <ActivityRow key={a.id} activity={a} />
                 ))}
               </View>
-            ) : (
-              <Pressable style={styles.emptyState} onPress={() => router.push('/run')}>
-                <Ionicons name="footsteps-outline" size={32} color={Colors.textTertiary} />
-                <Text variant="bodyMedium" color={Colors.textSecondary} style={{ marginTop: 8 }}>
-                  Nenhuma atividade ainda
-                </Text>
-                <Text variant="caption" color={Colors.textTertiary} style={{ textAlign: 'center', marginTop: 4 }}>
-                  Conecte o Strava ou faça sua primeira corrida pelo VINCERE
-                </Text>
-                <View style={styles.emptyBtn}>
-                  <Ionicons name="play" size={14} color={Colors.textInverse} />
-                  <Text variant="label" color={Colors.textInverse} tracking="wider">
-                    CORRER AGORA
-                  </Text>
-                </View>
-              </Pressable>
-            )}
-          </Animated.View>
+            </Animated.View>
+          )}
 
           <View style={{ height: 120 }} />
         </ScrollView>
@@ -335,11 +225,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
@@ -426,29 +311,6 @@ const styles = StyleSheet.create({
   lastRunRight: {
     alignItems: 'flex-end',
   },
-  paceCircle: {
-    alignItems: 'flex-end',
-  },
-  intensityBar: {
-    marginTop: Spacing.lg,
-    height: 3,
-    backgroundColor: Colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  intensityFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: 2,
-  },
-  intensityLabel: {
-    position: 'absolute',
-    right: 0,
-    top: 6,
-  },
   sectionLabel: {
     marginBottom: Spacing.sm,
   },
@@ -457,11 +319,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.sm,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
   },
   activityList: {
     gap: Spacing.sm,
@@ -475,24 +332,5 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     borderWidth: 1,
     borderColor: Colors.tertiary + '30',
-  },
-  emptyState: {
-    alignItems: 'center',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.xxl,
-    padding: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: Colors.borderSubtle,
-    gap: 0,
-  },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.pill,
-    marginTop: Spacing.base,
   },
 });
