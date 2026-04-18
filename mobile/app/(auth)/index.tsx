@@ -17,7 +17,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { Colors, Spacing, BRAND } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { useStravaAuthRequest, exchangeStravaCode, fetchRecentActivities } from '@/services/strava';
+import { useStravaAuthRequest, fetchRecentActivities } from '@/services/strava';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
 
@@ -25,17 +25,16 @@ const { height } = Dimensions.get('window');
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { request, response, promptAsync, redirectUri } = useStravaAuthRequest();
+  const { request, response, promptAsync } = useStravaAuthRequest();
   const setTokens = useAuthStore((s) => s.setTokens);
   const setUser = useAuthStore((s) => s.setUser);
   const setActivities = useTrainingStore((s) => s.setActivities);
 
   useEffect(() => {
     const handle = async () => {
-      if (response?.type === 'success' && response.params.code) {
+      if (response?.type === 'success') {
         try {
-          const tokens = await exchangeStravaCode(response.params.code, redirectUri);
-          await setTokens(tokens);
+          await setTokens(response.tokens);
           // Eagerly pull the athlete's recent activities so the app has real
           // data the moment the user lands on the dashboard.
           try {
@@ -46,22 +45,20 @@ export default function OnboardingScreen() {
           }
           router.replace('/(auth)/goal');
         } catch (err: any) {
-          const detail =
-            err?.response?.data?.detail ??
-            err?.message ??
-            'Não foi possível conectar ao Strava.';
-          console.error('[strava] exchange failed', err?.response?.data ?? err);
-          Alert.alert(
-            'Erro ao conectar',
-            `${detail}\n\nVerifique se o backend está rodando e as credenciais STRAVA_CLIENT_SECRET estão configuradas em backend/.env.`,
-          );
+          console.error('[strava] save tokens failed', err);
+          Alert.alert('Erro ao salvar tokens', err?.message ?? 'Falha inesperada.');
         }
       } else if (response?.type === 'error') {
-        Alert.alert('Autorização cancelada', 'Você pode tentar de novo quando quiser.');
+        Alert.alert(
+          'Erro ao conectar',
+          `${response.error}\n\nVerifique:\n1. Backend rodando (docker compose up)\n2. STRAVA_CLIENT_SECRET preenchido em backend/.env\n3. "Authorization Callback Domain" no Strava = localhost`,
+        );
+      } else if (response?.type === 'cancel') {
+        // User backed out of the browser — no action needed.
       }
     };
     handle();
-  }, [response, redirectUri, router, setTokens, setActivities]);
+  }, [response, router, setTokens, setActivities]);
 
   // Dev-only shortcut — bypasses Strava + backend and drops into the app
   // with a fully onboarded demo user. Hidden in production builds.
