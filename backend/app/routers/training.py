@@ -34,8 +34,9 @@ async def generate_plan(req: GeneratePlanRequest, authorization: str = Header(No
 
 
 @router.post("/plan/adjust", response_model=TrainingPlan)
-async def adjust_plan(authorization: str = Header(None)):
-    """Re-runs plan generation with the latest 7 days of Strava data applied."""
+async def adjust_plan(req: GeneratePlanRequest, authorization: str = Header(None)):
+    """Re-generates the plan using only the last ~2 weeks of Strava activity,
+    so Claude can course-correct based on very recent performance."""
     token = _extract_token(authorization)
     recent = []
     if token:
@@ -43,7 +44,12 @@ async def adjust_plan(authorization: str = Header(None)):
             recent = await strava_service.fetch_activities(token, per_page=15)
         except Exception:
             recent = []
-    raise HTTPException(
-        status_code=501,
-        detail="Plan adjustment requires persisted user state. Implement DB layer.",
-    )
+    try:
+        return await claude_service.generate_plan(
+            goal=req.goal,
+            fitness_level="intermediate",
+            days_per_week=5,
+            recent_activities=recent,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

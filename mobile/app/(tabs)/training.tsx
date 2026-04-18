@@ -35,8 +35,21 @@ export default function TrainingScreen() {
       const newPlan = await generateTrainingPlan(goal);
       setPlan(newPlan);
       Alert.alert('Plano atualizado!', 'Sua próxima semana foi gerada com base nos seus treinos recentes.');
-    } catch {
-      Alert.alert('Ops!', 'Não foi possível gerar o plano agora. Verifique sua conexão ou tente novamente.');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const detail = err?.response?.data?.detail;
+      let msg: string;
+      if (status) {
+        msg = `Backend respondeu ${status}${detail ? `: ${detail}` : ''}.`;
+      } else if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+        msg = 'Timeout — Claude demorou mais de 30s. Tente de novo.';
+      } else if (err?.message?.includes('Network')) {
+        msg = 'Backend inacessível. Está rodando `docker compose up` em backend/?';
+      } else {
+        msg = err?.message ?? 'Erro desconhecido.';
+      }
+      console.error('[training] generate plan failed', err);
+      Alert.alert('Não consegui gerar o plano', msg);
     } finally {
       setGenerating(false);
     }

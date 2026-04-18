@@ -33,9 +33,9 @@ export async function generateTrainingPlan(goal: UserGoal): Promise<TrainingPlan
   return data;
 }
 
-/** Adjust this week's plan based on last 7 days of training */
-export async function adjustWeek(): Promise<TrainingPlan> {
-  const { data } = await api.post<TrainingPlan>('/training/plan/adjust');
+/** Adjust this week's plan based on last ~2 weeks of training */
+export async function adjustWeek(goal: UserGoal): Promise<TrainingPlan> {
+  const { data } = await api.post<TrainingPlan>('/training/plan/adjust', { goal });
   return data;
 }
 

@@ -1,10 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  StyleSheet,
-  View,
-  Dimensions,
-  Alert,
-} from 'react-native';
+import { StyleSheet, View, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';

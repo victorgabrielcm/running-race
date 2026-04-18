@@ -16,7 +16,9 @@ import { StartRunFAB } from '@/components/StartRunFAB';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
 import { fetchRecentActivities } from '@/services/strava';
+import { fetchDailyInsight } from '@/services/coach';
 import { greeting, formatDistance, formatPace, formatDurationHuman } from '@/utils/format';
+import { currentWeekStats } from '@/utils/stats';
 import { mockActivities, mockPlan, mockInsight, mockWeeklyStats } from '@/mock/data';
 
 export default function DashboardScreen() {
@@ -25,11 +27,15 @@ export default function DashboardScreen() {
   const tokens = useAuthStore((s) => s.tokens);
   const activities = useTrainingStore((s) => s.activities);
   const setActivities = useTrainingStore((s) => s.setActivities);
+  const insights = useTrainingStore((s) => s.insights);
+  const addInsight = useTrainingStore((s) => s.addInsight);
   const plan = useTrainingStore((s) => s.plan);
   const [refreshing, setRefreshing] = useState(false);
 
+  const isDemo = tokens?.access_token === 'demo-access-token';
+
   const syncStrava = async () => {
-    if (!tokens || tokens.access_token === 'demo-access-token') return;
+    if (!tokens || isDemo) return;
     try {
       setRefreshing(true);
       const fresh = await fetchRecentActivities();
@@ -41,14 +47,26 @@ export default function DashboardScreen() {
     }
   };
 
+  const syncInsight = async () => {
+    if (!tokens || isDemo) return;
+    try {
+      const fresh = await fetchDailyInsight();
+      addInsight(fresh);
+    } catch (err) {
+      console.warn('[coach insight] failed', err);
+    }
+  };
+
   useEffect(() => {
     if (activities.length === 0) syncStrava();
+    if (insights.length === 0) syncInsight();
   }, []);
 
   const hasRealData = activities.length > 0;
   const recentActivities = hasRealData ? activities : mockActivities;
   const todayWorkout = plan?.weeks[0]?.workouts[0] ?? mockPlan.weeks[0].workouts[0];
-  const weekStats = mockWeeklyStats;
+  const weekStats = hasRealData ? currentWeekStats(activities) : mockWeeklyStats;
+  const displayInsight = insights[0] ?? mockInsight;
 
   const weeklyGoal = user?.weeklyGoalKm ?? 50;
   const weeklyDone = weekStats.distance;
@@ -120,7 +138,10 @@ export default function DashboardScreen() {
               </View>
 
               <View style={styles.heroFooter}>
-                <MiniStat label="Treinos" value={`${weekStats.runs}/5`} />
+                <MiniStat
+                  label="Treinos"
+                  value={`${weekStats.runs}/${user?.trainingDaysPerWeek ?? 5}`}
+                />
                 <View style={styles.divider} />
                 <MiniStat label="Tempo" value={formatDurationHuman(weekStats.duration * 60)} />
               </View>
@@ -187,7 +208,7 @@ export default function DashboardScreen() {
           ) : null}
 
           <Animated.View entering={FadeInDown.duration(500).delay(200)}>
-            <AIInsightCard insight={mockInsight} onPress={() => router.push('/coach')} />
+            <AIInsightCard insight={displayInsight} onPress={() => router.push('/coach')} />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(500).delay(250)}>

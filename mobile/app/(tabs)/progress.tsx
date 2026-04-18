@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, StyleSheet, View, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,13 +10,16 @@ import { Text } from '@/components/ui/Text';
 import { GoalProgressCard } from '@/components/GoalProgressCard';
 import { MetricCard } from '@/components/MetricCard';
 import { useAuthStore } from '@/stores/authStore';
-import { mockPlan, mockRecords } from '@/mock/data';
+import { useTrainingStore } from '@/stores/trainingStore';
+import { mockPlan, mockActivities } from '@/mock/data';
 import { formatTime, formatPace } from '@/utils/format';
+import { lastNWeeks, personalRecords } from '@/utils/stats';
 
 const { width } = Dimensions.get('window');
 
 export default function ProgressScreen() {
   const user = useAuthStore((s) => s.user);
+  const activities = useTrainingStore((s) => s.activities);
   const goal = user?.mainGoal ?? (mockPlan && {
     id: 'mock',
     type: '42k' as const,
@@ -25,6 +28,12 @@ export default function ProgressScreen() {
     isActive: true,
     createdAt: new Date().toISOString(),
   });
+
+  const hasRealData = activities.length > 0;
+  const source = hasRealData ? activities : mockActivities;
+
+  const weeks = useMemo(() => lastNWeeks(source, 6), [source]);
+  const records = useMemo(() => personalRecords(source), [source]);
 
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
@@ -41,13 +50,17 @@ export default function ProgressScreen() {
   };
 
   const weekData = {
-    labels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'],
-    datasets: [{ data: [22, 28, 34, 30, 38, 42] }],
+    labels: weeks.map((w) => w.week),
+    datasets: [{ data: weeks.map((w) => w.distance) }],
   };
 
+  // chart-kit chokes on all-zero datasets — force at least a baseline so the
+  // axis renders even on a rest week.
+  const pacePoints = weeks.map((w) => w.avgPace || 0);
+  const hasPace = pacePoints.some((p) => p > 0);
   const paceData = {
-    labels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'],
-    datasets: [{ data: [340, 335, 328, 322, 318, 312] }],
+    labels: weeks.map((w) => w.week),
+    datasets: [{ data: hasPace ? pacePoints : [0, 0, 0, 0, 0, 0] }],
   };
 
   return (
@@ -79,15 +92,46 @@ export default function ProgressScreen() {
 
         <Animated.View entering={FadeInDown.duration(500).delay(150)}>
           <View style={styles.metricsGrid}>
-            <MetricCard label="FORMA" value="+7" icon="trending-up" trend="up" trendValue="Descansado" />
             <MetricCard
-              label="VO2 MAX"
-              value="52"
-              unit="ml/kg"
+              label="KM SEMANA"
+              value={String(weeks[weeks.length - 1]?.distance ?? 0)}
+              unit="km"
+              icon="trending-up"
+              trend={
+                weeks.length >= 2 &&
+                weeks[weeks.length - 1].distance > weeks[weeks.length - 2].distance
+                  ? 'up'
+                  : 'down'
+              }
+              trendValue={
+                weeks.length >= 2
+                  ? `${weeks[weeks.length - 1].distance - weeks[weeks.length - 2].distance > 0 ? '+' : ''}${(
+                      weeks[weeks.length - 1].distance - weeks[weeks.length - 2].distance
+                    ).toFixed(1)} vs W ant.`
+                  : 'Primeira semana'
+              }
+            />
+            <MetricCard
+              label="PACE MÉDIO"
+              value={formatPace(weeks[weeks.length - 1]?.avgPace || 0)}
+              unit="/km"
               accent={Colors.tertiary}
               icon="flash"
-              trend="up"
-              trendValue="+0.8"
+              trend={
+                weeks.length >= 2 &&
+                weeks[weeks.length - 1].avgPace > 0 &&
+                weeks[weeks.length - 2].avgPace > 0 &&
+                weeks[weeks.length - 1].avgPace < weeks[weeks.length - 2].avgPace
+                  ? 'up'
+                  : 'down'
+              }
+              trendValue={
+                weeks.length >= 2 && weeks[weeks.length - 2].avgPace > 0
+                  ? `${Math.round(
+                      weeks[weeks.length - 2].avgPace - weeks[weeks.length - 1].avgPace,
+                    )}s vs W ant.`
+                  : '—'
+              }
             />
           </View>
         </Animated.View>
@@ -155,22 +199,32 @@ export default function ProgressScreen() {
             RECORDES PESSOAIS
           </Text>
           <View style={styles.records}>
-            {mockRecords.map((r, i) => (
-              <View key={r.distance} style={styles.recordCard}>
-                <View style={styles.recordHeader}>
-                  <Text variant="h3" color={Colors.tertiary}>
-                    {r.distance.toUpperCase()}
-                  </Text>
-                  <Ionicons name="trophy" size={14} color={Colors.tertiary} />
-                </View>
-                <Text variant="metric" color={Colors.textPrimary} style={{ marginTop: 8 }}>
-                  {formatTime(r.time)}
-                </Text>
+            {records.length === 0 ? (
+              <View style={[styles.recordCard, { minWidth: '100%' }]}>
                 <Text variant="caption" color={Colors.textSecondary}>
-                  {formatPace(r.pace)} /km
+                  Ainda não há corridas suficientes para calcular PRs. Suas 4
+                  próximas distâncias marco (1km, 5k, 10k, 21k) aparecem aqui
+                  conforme você acumula histórico no Strava.
                 </Text>
               </View>
-            ))}
+            ) : (
+              records.map((r) => (
+                <View key={r.distance} style={styles.recordCard}>
+                  <View style={styles.recordHeader}>
+                    <Text variant="h3" color={Colors.tertiary}>
+                      {r.distance.toUpperCase()}
+                    </Text>
+                    <Ionicons name="trophy" size={14} color={Colors.tertiary} />
+                  </View>
+                  <Text variant="metric" color={Colors.textPrimary} style={{ marginTop: 8 }}>
+                    {formatTime(r.time)}
+                  </Text>
+                  <Text variant="caption" color={Colors.textSecondary}>
+                    {formatPace(r.pace)} /km
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </Animated.View>
 
