@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, View, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,7 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import type { GoalType } from '@/types';
+import type { GoalType, UserProfile } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 
 const goals: {
@@ -29,21 +29,70 @@ const goals: {
 export default function GoalScreen() {
   const router = useRouter();
   const [selected, setSelected] = useState<GoalType | null>(null);
+  const [saving, setSaving] = useState(false);
   const user = useAuthStore((s) => s.user);
+  const tokens = useAuthStore((s) => s.tokens);
   const setUser = useAuthStore((s) => s.setUser);
+  const logout = useAuthStore((s) => s.logout);
 
   const handleContinue = async () => {
-    if (!selected || !user) return;
-    await setUser({
-      ...user,
-      mainGoal: {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const goal = {
         id: `goal_${Date.now()}`,
         type: selected,
         isActive: true,
         createdAt: new Date().toISOString(),
-      },
-    });
-    router.push('/(auth)/profile');
+      };
+
+      // Build a base profile if `user` was never set (can happen on legacy
+      // sessions that predate the profile-from-tokens fix in (auth)/index).
+      const base: UserProfile = user ?? {
+        stravaId: tokens?.athlete?.id ?? 0,
+        name:
+          [tokens?.athlete?.firstname, tokens?.athlete?.lastname]
+            .filter(Boolean)
+            .join(' ') || 'Atleta',
+        avatar:
+          tokens?.athlete?.profile_medium || tokens?.athlete?.profile || '',
+        weight: tokens?.athlete?.weight || undefined,
+        weeklyGoalKm: 50,
+        trainingDaysPerWeek: 4,
+        fitnessLevel: 'intermediate',
+        mainGoal: goal,
+        onboarded: false,
+      };
+
+      await setUser({ ...base, mainGoal: goal });
+      router.push('/(auth)/profile');
+    } catch (err: any) {
+      console.error('[goal] save failed', err);
+      Alert.alert(
+        'Não foi possível salvar',
+        err?.message ?? 'Tente novamente. Se persistir, saia e reconecte.',
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleStartOver = () => {
+    Alert.alert(
+      'Recomeçar?',
+      'Isso desconecta do Strava e limpa os dados locais.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Recomeçar',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)');
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -54,9 +103,16 @@ export default function GoalScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
-          <Text variant="label" color={Colors.primary} tracking="wider">
-            ETAPA 1 DE 2
-          </Text>
+          <View style={styles.headerRow}>
+            <Text variant="label" color={Colors.primary} tracking="wider">
+              ETAPA 1 DE 2
+            </Text>
+            <Pressable onPress={handleStartOver} hitSlop={10}>
+              <Text variant="caption" color={Colors.textTertiary} tracking="wider">
+                RECOMEÇAR
+              </Text>
+            </Pressable>
+          </View>
           <Text variant="display" color={Colors.textPrimary} style={styles.title}>
             Qual é o{'\n'}seu objetivo?
           </Text>
@@ -117,11 +173,12 @@ export default function GoalScreen() {
 
       <View style={styles.footer}>
         <Button
-          label="Continuar"
+          label={saving ? 'Salvando...' : 'Continuar'}
           variant="primary"
           size="lg"
           fullWidth
-          disabled={!selected}
+          disabled={!selected || saving}
+          loading={saving}
           onPress={handleContinue}
           rightIcon={<Ionicons name="arrow-forward" size={18} color={Colors.textInverse} />}
         />
@@ -142,6 +199,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: Spacing.xl,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
     marginTop: Spacing.sm,

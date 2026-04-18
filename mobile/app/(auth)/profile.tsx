@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Pressable, ScrollView } from 'react-native';
+import { StyleSheet, View, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import type { UserProfile } from '@/types';
 import { useAuthStore } from '@/stores/authStore';
 
 type Level = 'beginner' | 'intermediate' | 'advanced' | 'elite';
@@ -39,20 +40,55 @@ export default function ProfileSetupScreen() {
   const router = useRouter();
   const [level, setLevel] = useState<Level | null>(null);
   const [days, setDays] = useState(4);
+  const [saving, setSaving] = useState(false);
   const user = useAuthStore((s) => s.user);
+  const tokens = useAuthStore((s) => s.tokens);
   const setUser = useAuthStore((s) => s.setUser);
 
   const handleFinish = async () => {
-    if (!level || !user) return;
-    await setUser({
-      ...user,
-      fitnessLevel: level,
-      trainingDaysPerWeek: days,
-      onboarded: true,
-    });
-    // Belt-and-suspenders: _layout.tsx also handles this redirect via isAuthenticated,
-    // but explicit navigate ensures no timing edge case on slower devices.
-    router.replace('/(tabs)');
+    if (!level) return;
+    setSaving(true);
+    try {
+      // Fall back to tokens if the user somehow wasn't persisted earlier.
+      const base: UserProfile = user ?? {
+        stravaId: tokens?.athlete?.id ?? 0,
+        name:
+          [tokens?.athlete?.firstname, tokens?.athlete?.lastname]
+            .filter(Boolean)
+            .join(' ') || 'Atleta',
+        avatar:
+          tokens?.athlete?.profile_medium || tokens?.athlete?.profile || '',
+        weight: tokens?.athlete?.weight || undefined,
+        weeklyGoalKm: 50,
+        trainingDaysPerWeek: days,
+        fitnessLevel: level,
+        mainGoal: {
+          id: `goal_${Date.now()}`,
+          type: '21k',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        },
+        onboarded: false,
+      };
+
+      await setUser({
+        ...base,
+        fitnessLevel: level,
+        trainingDaysPerWeek: days,
+        onboarded: true,
+      });
+      // Belt-and-suspenders: _layout.tsx also handles this redirect via isAuthenticated,
+      // but explicit navigate ensures no timing edge case on slower devices.
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      console.error('[profile] save failed', err);
+      Alert.alert(
+        'Não foi possível salvar',
+        err?.message ?? 'Tente novamente.',
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -152,11 +188,12 @@ export default function ProfileSetupScreen() {
 
       <View style={styles.footer}>
         <Button
-          label="Gerar meu plano"
+          label={saving ? 'Gerando...' : 'Gerar meu plano'}
           variant="primary"
           size="lg"
           fullWidth
-          disabled={!level}
+          disabled={!level || saving}
+          loading={saving}
           onPress={handleFinish}
           rightIcon={<Ionicons name="sparkles" size={18} color={Colors.textInverse} />}
         />
