@@ -244,7 +244,7 @@ export default function SummaryScreen() {
             size="md"
             fullWidth
             onPress={handleUploadStrava}
-            leftIcon={<Ionicons name="logo-strava" size={16} color={Colors.strava} />}
+            leftIcon={<Ionicons name="fitness" size={16} color={Colors.strava} />}
           />
 
           {/* Apple Health / Google Health button — visible when sync is enabled */}

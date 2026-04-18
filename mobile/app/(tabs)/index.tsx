@@ -151,7 +151,7 @@ export default function DashboardScreen() {
                   </Text>
                   {hasRealData && (
                     <View style={styles.stravaBadge}>
-                      <Ionicons name="logo-strava" size={12} color={Colors.strava} />
+                      <Ionicons name="fitness" size={12} color={Colors.strava} />
                       <Text
                         variant="label"
                         color={Colors.strava}

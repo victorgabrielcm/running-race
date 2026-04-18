@@ -229,7 +229,7 @@ export default function SettingsScreen() {
           <SectionHeader label="STRAVA" />
 
           <SettingRow
-            icon="logo-strava"
+            icon="fitness"
             iconColor={Colors.strava}
             title="Conta conectada"
             subtitle="Atividades sincronizadas automaticamente"

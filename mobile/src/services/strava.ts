@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
@@ -9,38 +10,65 @@ WebBrowser.maybeCompleteAuthSession();
 const CLIENT_ID =
   (Constants.expoConfig?.extra?.stravaClientId as string | undefined) ?? '216298';
 
-const discovery = {
-  authorizationEndpoint: 'https://www.strava.com/oauth/mobile/authorize',
-  tokenEndpoint: 'https://www.strava.com/oauth/token',
-};
+// Strava requires unencoded commas between scopes (it rejects %2C). We
+// assemble the URL by hand instead of using expo-auth-session's useAuthRequest
+// because the latter URL-encodes query params and breaks Strava's parser.
+const STRAVA_SCOPE_STRING = 'read,activity:read_all,profile:read_all';
 
-// Strava expects scopes comma-separated in the authorize URL (not space-
-// separated like the OAuth 2.0 standard). Passing them as a single joined
-// string forces expo-auth-session to emit `scope=read,activity:read_all,...`
-// instead of the default `scope=read activity:read_all ...` which Strava
-// rejects with `{"field":"scope","code":"invalid"}`.
-export const STRAVA_SCOPES = [
-  'read,activity:read_all,profile:read_all',
-];
+type AuthResponse =
+  | { type: 'success'; params: { code: string } }
+  | { type: 'cancel' }
+  | { type: 'error'; error: string }
+  | null;
 
 export function useStravaAuthRequest() {
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: 'vincere',
-    path: 'strava/callback',
-  });
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: CLIENT_ID,
-      scopes: STRAVA_SCOPES,
-      redirectUri,
-      responseType: AuthSession.ResponseType.Code,
-      extraParams: { approval_prompt: 'auto' },
-    },
-    discovery,
+  const redirectUri = useMemo(
+    () =>
+      AuthSession.makeRedirectUri({
+        scheme: 'vincere',
+        path: 'strava/callback',
+      }),
+    [],
   );
 
-  return { request, response, promptAsync, redirectUri };
+  const [response, setResponse] = useState<AuthResponse>(null);
+
+  const promptAsync = async () => {
+    const authUrl =
+      `https://www.strava.com/oauth/mobile/authorize` +
+      `?client_id=${encodeURIComponent(CLIENT_ID)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&response_type=code` +
+      `&approval_prompt=auto` +
+      // Scope must be comma-separated and NOT URL-encoded — Strava rejects
+      // %2C. Appending it raw preserves the commas in the final request.
+      `&scope=${STRAVA_SCOPE_STRING}`;
+
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      if (result.type === 'success' && result.url) {
+        const parsed = new URL(result.url);
+        const code = parsed.searchParams.get('code');
+        const err = parsed.searchParams.get('error');
+        if (code) {
+          setResponse({ type: 'success', params: { code } });
+        } else {
+          setResponse({ type: 'error', error: err ?? 'Código não recebido' });
+        }
+      } else if (result.type === 'cancel' || result.type === 'dismiss') {
+        setResponse({ type: 'cancel' });
+      }
+    } catch (e: any) {
+      setResponse({ type: 'error', error: e?.message ?? 'Erro desconhecido' });
+    }
+  };
+
+  return {
+    request: { ready: true },
+    response,
+    promptAsync,
+    redirectUri,
+  };
 }
 
 /**

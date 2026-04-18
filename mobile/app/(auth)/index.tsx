@@ -167,7 +167,7 @@ export default function OnboardingScreen() {
               fullWidth
               disabled={!request}
               onPress={() => promptAsync()}
-              leftIcon={<Ionicons name="logo-strava" size={18} color={Colors.textInverse} />}
+              leftIcon={<Ionicons name="fitness" size={18} color={Colors.textInverse} />}
             />
 
             <View style={styles.howItWorks}>
