@@ -46,6 +46,7 @@ export default function ProfileSetupScreen() {
   const setUser = useAuthStore((s) => s.setUser);
 
   const handleFinish = async () => {
+    console.log('[profile] handleFinish tapped', { level, days, hasUser: !!user, hasTokens: !!tokens });
     if (!level) return;
     setSaving(true);
     try {
@@ -77,6 +78,7 @@ export default function ProfileSetupScreen() {
         trainingDaysPerWeek: days,
         onboarded: true,
       });
+      console.log('[profile] setUser ok, navigating to /(tabs)');
       // Belt-and-suspenders: _layout.tsx also handles this redirect via isAuthenticated,
       // but explicit navigate ensures no timing edge case on slower devices.
       router.replace('/(tabs)');

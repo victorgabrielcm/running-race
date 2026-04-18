@@ -36,7 +36,11 @@ export default function GoalScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   const handleContinue = async () => {
-    if (!selected) return;
+    console.log('[goal] handleContinue tapped', { selected, hasUser: !!user, hasTokens: !!tokens });
+    if (!selected) {
+      Alert.alert('Selecione uma meta', 'Toque em uma das opções acima antes de continuar.');
+      return;
+    }
     setSaving(true);
     try {
       const goal = {
@@ -65,6 +69,7 @@ export default function GoalScreen() {
       };
 
       await setUser({ ...base, mainGoal: goal });
+      console.log('[goal] setUser ok, navigating to /(auth)/profile');
       router.push('/(auth)/profile');
     } catch (err: any) {
       console.error('[goal] save failed', err);
