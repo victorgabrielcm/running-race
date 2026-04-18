@@ -74,21 +74,42 @@ class StravaService:
         return athlete.model_dump()
 
     async def fetch_activities(
-        self, access_token: str, after: Optional[int] = None, per_page: int = 30
+        self,
+        access_token: str,
+        after: Optional[int] = None,
+        per_page: int = 100,
+        max_pages: int = 1,
     ) -> List[StravaActivity]:
-        """Fetches the athlete's recent activities."""
-        params: dict = {"per_page": per_page}
-        if after:
-            params["after"] = after
+        """Fetches the athlete's recent activities (default 100, max 200 per page).
+
+        max_pages > 1 paginates older activities. Each page costs one Strava API
+        call; Strava's rate limit is 100 req/15min so 3-4 pages is safe."""
+        all_runs: List[StravaActivity] = []
         async with httpx.AsyncClient(timeout=30.0) as client:
-            r = await client.get(
-                f"{STRAVA_API_BASE}/athlete/activities",
-                headers={"Authorization": f"Bearer {access_token}"},
-                params=params,
-            )
-            r.raise_for_status()
-            raw = r.json()
-            return [StravaActivity(**a) for a in raw if a.get("type") in ("Run", "TrailRun")]
+            for page in range(1, max_pages + 1):
+                params: dict = {"per_page": min(per_page, 200), "page": page}
+                if after:
+                    params["after"] = after
+                r = await client.get(
+                    f"{STRAVA_API_BASE}/athlete/activities",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                    params=params,
+                )
+                r.raise_for_status()
+                raw = r.json()
+                runs = [
+                    StravaActivity(**a) for a in raw if a.get("type") in ("Run", "TrailRun")
+                ]
+                all_runs.extend(runs)
+                if len(raw) < params["per_page"]:
+                    break  # last page
+        return all_runs
+
+    async def fetch_full_history(self, access_token: str) -> List[StravaActivity]:
+        """Fetches up to ~600 runs (6 pages × 100) — covers several months of training.
+
+        Used once on login and for PR/analytics computations that need long history."""
+        return await self.fetch_activities(access_token, per_page=100, max_pages=6)
 
     async def fetch_activity(self, access_token: str, activity_id: int) -> dict:
         """Full detail for a single activity, including laps + streams."""

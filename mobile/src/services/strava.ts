@@ -137,6 +137,16 @@ export async function fetchRecentActivities(after?: number): Promise<StravaActiv
   return data;
 }
 
+/** Fetches ~600 runs (last few months) — needed for accurate PR computation
+ *  across distances like 21k / 42k that don't appear in the last 30 runs. */
+export async function fetchFullHistory(): Promise<StravaActivity[]> {
+  const { data } = await api.get<StravaActivity[]>('/strava/activities', {
+    params: { full: true },
+    timeout: 30000,
+  });
+  return data;
+}
+
 export async function fetchActivityDetail(id: number): Promise<StravaActivity> {
   const { data } = await api.get<StravaActivity>(`/strava/activities/${id}`);
   return data;

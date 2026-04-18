@@ -78,6 +78,10 @@ export interface UserProfile {
   age?: number;
   weeklyGoalKm?: number;
   trainingDaysPerWeek?: number;
+  /** Weekdays the athlete is willing to train. 0=Mon, 1=Tue, ..., 6=Sun. */
+  trainingDays?: number[];
+  /** Preferred weekday for the weekly long run (0=Mon..6=Sun). Usually weekend. */
+  longRunDay?: number;
   mainGoal: UserGoal;
   secondaryGoals?: UserGoal[];
   fitnessLevel: 'beginner' | 'intermediate' | 'advanced' | 'elite';

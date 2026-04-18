@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { WorkoutCard } from '@/components/WorkoutCard';
+import { GlossaryButton } from '@/components/GlossaryModal';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useTrainingStore } from '@/stores/trainingStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -55,6 +56,23 @@ export default function TrainingScreen() {
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
   const [selectedDate, setSelectedDate] = useState<string>(todayISO);
   const [generating, setGenerating] = useState(false);
+
+  // When the plan starts in the future (always starts next Monday now), land
+  // the user on the first plan week so they don't stare at an empty "esta semana".
+  useEffect(() => {
+    const firstPlanWeek = plan.weeks[0];
+    if (!firstPlanWeek?.startDate) return;
+    const planMonday = new Date(firstPlanWeek.startDate + 'T00:00:00');
+    const thisMonday = mondayOf(today);
+    const diffWeeks = Math.round(
+      (planMonday.getTime() - thisMonday.getTime()) / (7 * 86400000),
+    );
+    if (diffWeeks > 0) {
+      setWeekOffset(diffWeeks);
+      setSelectedDate(firstPlanWeek.startDate.slice(0, 10));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan.id]);
 
   // Compute the Monday of the displayed week
   const weekStart = useMemo(() => {
@@ -144,8 +162,9 @@ export default function TrainingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, workoutsByDate, activitiesByDate]);
 
-  // Future cap: only the next week is visible (planned or not)
-  const canGoNext = weekOffset < 1;
+  // Allow navigation up to the last planned week + 1 (so user can peek ahead)
+  const maxOffset = Math.max(1, plan.weeks.length);
+  const canGoNext = weekOffset < maxOffset;
   const canGoPrev = true; // past weeks always viewable (backed by Strava activities)
 
   const runGeneration = async () => {
@@ -153,7 +172,12 @@ export default function TrainingScreen() {
     if (!goal) return;
     setGenerating(true);
     try {
-      const newPlan = await generateTrainingPlan(goal);
+      const newPlan = await generateTrainingPlan({
+        goal,
+        training_days: user?.trainingDays,
+        long_run_day: user?.longRunDay,
+        fitness_level: user?.fitnessLevel,
+      });
       setPlan(newPlan);
       Alert.alert(
         'Plano atualizado!',
@@ -263,16 +287,19 @@ export default function TrainingScreen() {
               Plano de Treino
             </Text>
           </View>
-          <View
-            style={[
-              styles.phaseBadge,
-              { borderColor: phaseColor[weekPhase] + '50' },
-            ]}
-          >
-            <View style={[styles.phaseDot, { backgroundColor: phaseColor[weekPhase] }]} />
-            <Text variant="label" color={phaseColor[weekPhase]} tracking="wider">
-              {phaseLabel[weekPhase]}
-            </Text>
+          <View style={styles.headerRight}>
+            <View
+              style={[
+                styles.phaseBadge,
+                { borderColor: phaseColor[weekPhase] + '50' },
+              ]}
+            >
+              <View style={[styles.phaseDot, { backgroundColor: phaseColor[weekPhase] }]} />
+              <Text variant="label" color={phaseColor[weekPhase]} tracking="wider">
+                {phaseLabel[weekPhase]}
+              </Text>
+            </View>
+            <GlossaryButton />
           </View>
         </Animated.View>
 
@@ -480,6 +507,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
+  },
+  headerRight: {
+    alignItems: 'flex-end',
+    gap: 6,
   },
   title: { marginTop: 4, fontSize: 32, lineHeight: 36 },
   phaseBadge: {

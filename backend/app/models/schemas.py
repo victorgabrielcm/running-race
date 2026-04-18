@@ -127,6 +127,9 @@ class TrainingPlan(BaseModel):
 
 class GeneratePlanRequest(BaseModel):
     goal: UserGoal
+    training_days: Optional[List[int]] = None  # 0=Mon..6=Sun
+    long_run_day: Optional[int] = None
+    fitness_level: Optional[Literal["beginner", "intermediate", "advanced", "elite"]] = None
 
 
 # ─── Coach ──────────────────────────────────────────────────────────────────

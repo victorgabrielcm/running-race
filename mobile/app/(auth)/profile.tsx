@@ -36,21 +36,43 @@ const levels: { value: Level; title: string; desc: string }[] = [
   },
 ];
 
+const WEEKDAY_LABELS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+
 export default function ProfileSetupScreen() {
   const router = useRouter();
   const [level, setLevel] = useState<Level | null>(null);
-  const [days, setDays] = useState(4);
+  // Pre-select Mon/Wed/Fri/Sat/Sun as a sane default
+  const [trainingDays, setTrainingDays] = useState<number[]>([0, 2, 4, 5, 6]);
+  const [longRunDay, setLongRunDay] = useState<number>(6); // Sunday default
   const [saving, setSaving] = useState(false);
   const user = useAuthStore((s) => s.user);
   const tokens = useAuthStore((s) => s.tokens);
   const setUser = useAuthStore((s) => s.setUser);
 
+  const toggleDay = (d: number) => {
+    setTrainingDays((prev) => {
+      const has = prev.includes(d);
+      const next = has ? prev.filter((x) => x !== d) : [...prev, d].sort();
+      // If removing the current long-run day, pick a new weekend (or last day)
+      if (has && d === longRunDay && next.length > 0) {
+        const weekend = next.find((x) => x === 6) ?? next.find((x) => x === 5) ?? next[next.length - 1];
+        setLongRunDay(weekend);
+      }
+      return next;
+    });
+  };
+
   const handleFinish = async () => {
-    console.log('[profile] handleFinish tapped', { level, days, hasUser: !!user, hasTokens: !!tokens });
     if (!level) return;
+    if (trainingDays.length < 3) {
+      Alert.alert(
+        'Escolha pelo menos 3 dias',
+        'A IA precisa de uma base mínima pra montar uma semana coerente.',
+      );
+      return;
+    }
     setSaving(true);
     try {
-      // Fall back to tokens if the user somehow wasn't persisted earlier.
       const base: UserProfile = user ?? {
         stravaId: tokens?.athlete?.id ?? 0,
         name:
@@ -61,7 +83,7 @@ export default function ProfileSetupScreen() {
           tokens?.athlete?.profile_medium || tokens?.athlete?.profile || '',
         weight: tokens?.athlete?.weight || undefined,
         weeklyGoalKm: 50,
-        trainingDaysPerWeek: days,
+        trainingDaysPerWeek: trainingDays.length,
         fitnessLevel: level,
         mainGoal: {
           id: `goal_${Date.now()}`,
@@ -75,19 +97,14 @@ export default function ProfileSetupScreen() {
       await setUser({
         ...base,
         fitnessLevel: level,
-        trainingDaysPerWeek: days,
+        trainingDaysPerWeek: trainingDays.length,
+        trainingDays,
+        longRunDay,
         onboarded: true,
       });
-      console.log('[profile] setUser ok, navigating to /(tabs)');
-      // Belt-and-suspenders: _layout.tsx also handles this redirect via isAuthenticated,
-      // but explicit navigate ensures no timing edge case on slower devices.
       router.replace('/(tabs)');
     } catch (err: any) {
-      console.error('[profile] save failed', err);
-      Alert.alert(
-        'Não foi possível salvar',
-        err?.message ?? 'Tente novamente.',
-      );
+      Alert.alert('Não foi possível salvar', err?.message ?? 'Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -105,10 +122,10 @@ export default function ProfileSetupScreen() {
             ETAPA 2 DE 2
           </Text>
           <Text variant="display" color={Colors.textPrimary} style={styles.title}>
-            Conta sobre{'\n'}seu ritmo.
+            Conta sobre{'\n'}sua rotina.
           </Text>
           <Text variant="body" color={Colors.textSecondary} style={styles.sub}>
-            A IA vai calibrar cada treino pro seu nível atual.
+            A IA vai calibrar os treinos ao seu nível, dias disponíveis e preferência pro longão.
           </Text>
         </Animated.View>
 
@@ -157,29 +174,67 @@ export default function ProfileSetupScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text variant="label" color={Colors.textSecondary} tracking="wider">
-            DIAS DE TREINO POR SEMANA
+          <View style={styles.sectionHeader}>
+            <Text variant="label" color={Colors.textSecondary} tracking="wider">
+              DIAS DE TREINO
+            </Text>
+            <Text variant="caption" color={Colors.textTertiary}>
+              {trainingDays.length} dia(s) selecionado(s)
+            </Text>
+          </View>
+          <Text variant="caption" color={Colors.textTertiary}>
+            Toque pra marcar os dias que você consegue treinar.
           </Text>
-          <View style={styles.daysRow}>
-            {[3, 4, 5, 6].map((d) => {
-              const active = days === d;
+          <View style={styles.weekRow}>
+            {WEEKDAY_LABELS.map((lbl, idx) => {
+              const active = trainingDays.includes(idx);
               return (
                 <Pressable
-                  key={d}
-                  onPress={() => setDays(d)}
-                  style={[styles.dayChip, active && styles.dayChipActive]}
+                  key={lbl}
+                  onPress={() => toggleDay(idx)}
+                  style={[styles.weekChip, active && styles.weekChipActive]}
                 >
                   <Text
-                    variant="h2"
-                    color={active ? Colors.textInverse : Colors.textPrimary}
-                  >
-                    {d}
-                  </Text>
-                  <Text
-                    variant="caption"
+                    variant="label"
                     color={active ? Colors.textInverse : Colors.textSecondary}
+                    tracking="wider"
                   >
-                    {d === 3 ? 'leve' : d === 4 ? 'balanço' : d === 5 ? 'sério' : 'elite'}
+                    {lbl}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text variant="label" color={Colors.textSecondary} tracking="wider">
+            MELHOR DIA PRO LONGÃO
+          </Text>
+          <Text variant="caption" color={Colors.textTertiary}>
+            O treino mais longo da semana (90 min a 2h30).
+          </Text>
+          <View style={styles.weekRow}>
+            {WEEKDAY_LABELS.map((lbl, idx) => {
+              const available = trainingDays.includes(idx);
+              const active = longRunDay === idx;
+              return (
+                <Pressable
+                  key={lbl}
+                  onPress={() => available && setLongRunDay(idx)}
+                  disabled={!available}
+                  style={[
+                    styles.weekChip,
+                    active && styles.weekChipActive,
+                    !available && { opacity: 0.3 },
+                  ]}
+                >
+                  <Text
+                    variant="label"
+                    color={active ? Colors.textInverse : Colors.textSecondary}
+                    tracking="wider"
+                  >
+                    {lbl}
                   </Text>
                 </Pressable>
               );
@@ -230,17 +285,25 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },
-  daysRow: { flexDirection: 'row', gap: Spacing.sm },
-  dayChip: {
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  weekChip: {
     flex: 1,
     backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    padding: Spacing.base,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.base,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: Colors.borderSubtle,
   },
-  dayChipActive: {
+  weekChipActive: {
     backgroundColor: Colors.primary,
     borderColor: Colors.primary,
   },

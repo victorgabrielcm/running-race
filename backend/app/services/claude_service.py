@@ -141,6 +141,32 @@ def _strip_code_fences(text: str) -> str:
     return text.strip()
 
 
+WEEKDAY_NAMES_PT = [
+    "segunda-feira",
+    "terça-feira",
+    "quarta-feira",
+    "quinta-feira",
+    "sexta-feira",
+    "sábado",
+    "domingo",
+]
+
+
+def _format_weekday(idx: Optional[int]) -> str:
+    if idx is None or idx < 0 or idx > 6:
+        return "domingo (default)"
+    return WEEKDAY_NAMES_PT[idx]
+
+
+def _format_training_days(days: Optional[List[int]], count: int) -> str:
+    if not days:
+        return f"qualquer {count} dias da semana"
+    valid = sorted([d for d in days if 0 <= d <= 6])
+    if not valid:
+        return f"qualquer {count} dias da semana"
+    return ", ".join(WEEKDAY_NAMES_PT[d] for d in valid)
+
+
 def _workout_to_load(workout_type: str) -> str:
     """Map workout type to training load bucket."""
     mapping = {
@@ -308,15 +334,22 @@ class AIService:
         fitness_level: str,
         days_per_week: int,
         recent_activities: List[StravaActivity],
+        training_days: Optional[List[int]] = None,
+        long_run_day: Optional[int] = None,
     ) -> TrainingPlan:
         weeks_available = self._weeks_until(goal.targetDate) if goal.targetDate else 16
         summary = self._summarize_activities(recent_activities)
         weekly_load = self._weekly_load(recent_activities)
 
-        # Compute the Monday of THIS week (plan always covers current week + next)
+        # Plans ALWAYS start on the next Monday. Never schedule workouts in the
+        # past — runs that already happened are pulled from Strava history and
+        # shown as completed, not as plan items.
         today = datetime.utcnow().date()
-        this_monday = today - timedelta(days=today.weekday())
-        next_monday = this_monday + timedelta(days=7)
+        days_until_plan_week2_start = (7 - today.weekday()) % 7
+        if days_until_plan_week2_start == 0:
+            days_until_plan_week2_start = 7  # today is Monday → plan starts NEXT Monday
+        plan_start = today + timedelta(days=days_until_plan_week2_start)
+        plan_week2_start = plan_start + timedelta(days=7)
 
         schema = {
             "goalType": goal.type,
@@ -330,8 +363,8 @@ class AIService:
             "weeks": [
                 {
                     "weekNumber": 1,
-                    "startDate": this_monday.isoformat(),
-                    "endDate": (this_monday + timedelta(days=6)).isoformat(),
+                    "startDate": plan_start.isoformat(),
+                    "endDate": (plan_start + timedelta(days=6)).isoformat(),
                     "phase": "base|build|peak|taper|recovery",
                     "totalKm": 30.0,
                     "workouts": [
@@ -340,7 +373,7 @@ class AIService:
                             "type": "easy_run",
                             "title": "string",
                             "description": "string (aquecimento + principal + volta calma)",
-                            "date": this_monday.isoformat(),
+                            "date": plan_start.isoformat(),
                             "targetDistance": 8.0,
                             "targetPace": "5:30",
                             "targetDuration": 45,
@@ -353,7 +386,7 @@ class AIService:
         prompt = f"""Meta do atleta: {goal.type} em {goal.targetDate or 'data não definida'}.
 Nível declarado: {fitness_level}. Dias disponíveis/semana: {days_per_week}.
 Semanas totais até a meta: {weeks_available}.
-Hoje: {today.isoformat()}. Segunda desta semana: {this_monday.isoformat()}. Próxima segunda: {next_monday.isoformat()}.
+Hoje: {today.isoformat()}. Próxima segunda (início do plano): {plan_start.isoformat()}. Semana seguinte: {plan_week2_start.isoformat()}.
 
 Histórico recente (Strava):
 {summary}
@@ -365,26 +398,30 @@ Carga atual:
 
 INSTRUÇÕES (CUMPRA TODAS):
 1. Retorne EXATAMENTE 2 SEMANAS no array "weeks":
-   - weeks[0]: esta semana, startDate={this_monday.isoformat()}, endDate=domingo dessa semana
-   - weeks[1]: próxima semana, startDate={next_monday.isoformat()}, endDate=domingo dessa semana
+   - weeks[0]: primeira semana, startDate={plan_start.isoformat()}, endDate=domingo dessa semana
+   - weeks[1]: segunda semana, startDate={plan_week2_start.isoformat()}, endDate=domingo dessa semana
+   NUNCA inclua datas anteriores a {plan_start.isoformat()}. Planos sempre começam
+   na próxima segunda-feira — passado é puxado do histórico do Strava, não do plano.
 2. Cada semana tem EXATAMENTE 7 workouts, UM POR DIA, datas consecutivas de
    segunda a domingo. Sem pular dia. Dias sem treino usam type="rest" (não omitir).
 3. Volume semana 1: no máximo {max(8, weekly_load['chronic'] * 1.1):.0f} km.
    Semana 2: no máximo +10% sobre semana 1.
-4. Distribuição por semana: {days_per_week} treinos de corrida/qualidade +
-   1 dia de força ou mobilidade + {7 - days_per_week - 1} dia(s) de rest.
-5. Periodização — como ainda faltam {weeks_available} semanas:
+4. DIAS DISPONÍVEIS PRO TREINO: {_format_training_days(training_days, days_per_week)}.
+   Nos dias FORA dessa lista, o workout OBRIGATORIAMENTE tem type="rest" ou "mobility".
+   Nos dias disponíveis, aloque os {days_per_week} treinos de corrida/qualidade.
+5. DIA PREFERIDO DO LONGÃO: {_format_weekday(long_run_day)}. Aloque o long_run nesse dia.
+6. Periodização — como ainda faltam {weeks_available} semanas:
    - Se >= 12 semanas: ambas as semanas = phase "base" (foco Z2).
    - Se 8-11 semanas: weeks[0]="base", weeks[1]="build".
    - Se 4-7 semanas: ambas "build" ou "peak".
    - Se <= 3 semanas antes da prova: "taper".
-6. Long run (longão) só no domingo ou sábado. Máximo 2h30.
-7. Avalie feasibility usando a tabela de semanas mínimas da base:
+7. Long run (longão) máximo 2h30 de duração.
+8. Avalie feasibility usando a tabela de semanas mínimas da base:
    5k iniciante=8 / 10k=12 / 21k=16 / 42k=24 / Ultra=24+ (intermediário reduz ~30%).
    Se {weeks_available} < o mínimo recomendado, verdict="risky" ou "impossible"
    e preencha "alternative" com distância menor ou data estendida.
-8. Paces realistas baseados no histórico. NÃO invente números muito mais rápidos.
-9. IDs únicos por workout (ex: "w1_seg_easy", "w2_dom_long").
+9. Paces realistas baseados no histórico. NÃO invente números muito mais rápidos.
+10. IDs únicos por workout (ex: "w1_seg_easy", "w2_dom_long").
 
 Schema (títulos/descrições em pt-BR):
 {json.dumps(schema, indent=2, ensure_ascii=False)}
@@ -403,24 +440,24 @@ RETORNE APENAS O JSON, começando com {{ e terminando com }}."""
             data = json.loads(text)
         except json.JSONDecodeError as err:
             print(f"[plan] JSON parse failed: {err}. First 300 chars: {text[:300]!r}")
-            return self._fallback_plan(goal, weeks_available, days_per_week, this_monday, weekly_load['chronic'])
+            return self._fallback_plan(goal, weeks_available, days_per_week, plan_start, weekly_load['chronic'])
 
         now = datetime.utcnow().isoformat()
         try:
             weeks = [TrainingWeek(**w) for w in data.get("weeks", [])]
         except Exception as err:
             print(f"[plan] TrainingWeek validation failed: {err}. Falling back.")
-            return self._fallback_plan(goal, weeks_available, days_per_week, this_monday, weekly_load['chronic'])
+            return self._fallback_plan(goal, weeks_available, days_per_week, plan_start, weekly_load['chronic'])
 
         if not weeks:
-            return self._fallback_plan(goal, weeks_available, days_per_week, this_monday, weekly_load['chronic'])
+            return self._fallback_plan(goal, weeks_available, days_per_week, plan_start, weekly_load['chronic'])
 
         return TrainingPlan(
             id=f"plan_{uuid.uuid4().hex[:10]}",
             goalType=goal.type,
             totalWeeks=weeks_available,
             currentWeek=1,
-            startDate=this_monday.isoformat(),
+            startDate=plan_start.isoformat(),
             raceDate=goal.targetDate,
             weeks=weeks,
             aiGenerated=True,
@@ -620,7 +657,7 @@ RETORNE APENAS O JSON, começando com {{ e terminando com }}."""
         goal: UserGoal,
         weeks_available: int,
         days_per_week: int = 5,
-        this_monday: Optional[date] = None,
+        plan_start: Optional[date] = None,
         current_volume_km: float = 30.0,
     ) -> TrainingPlan:
         """Rule-based fallback: 2 reasonable base-phase weeks derived from current volume.
@@ -628,7 +665,10 @@ RETORNE APENAS O JSON, começando com {{ e terminando com }}."""
         from app.models.schemas import Workout  # avoid circular import at module load
 
         now = datetime.utcnow().isoformat()
-        this_monday = this_monday or (datetime.utcnow().date() - timedelta(days=datetime.utcnow().weekday()))
+        if plan_start is None:
+            _today = datetime.utcnow().date()
+            _gap = (7 - _today.weekday()) % 7
+            plan_start = _today + timedelta(days=_gap or 7)
         base_km = max(20.0, min(70.0, current_volume_km * 1.05 if current_volume_km > 0 else 30.0))
 
         # Default 7-day template for {days_per_week} runs
@@ -706,8 +746,8 @@ RETORNE APENAS O JSON, começando com {{ e terminando com }}."""
             )
 
         weeks = [
-            week_for(this_monday, 1, base_km, "base"),
-            week_for(this_monday + timedelta(days=7), 2, round(base_km * 1.1, 1), "base"),
+            week_for(plan_start, 1, base_km, "base"),
+            week_for(plan_start + timedelta(days=7), 2, round(base_km * 1.1, 1), "base"),
         ]
 
         return TrainingPlan(
@@ -715,7 +755,7 @@ RETORNE APENAS O JSON, começando com {{ e terminando com }}."""
             goalType=goal.type,
             totalWeeks=weeks_available,
             currentWeek=1,
-            startDate=this_monday.isoformat(),
+            startDate=plan_start.isoformat(),
             raceDate=goal.targetDate,
             weeks=weeks,
             aiGenerated=False,

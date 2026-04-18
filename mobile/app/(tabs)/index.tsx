@@ -15,7 +15,7 @@ import { ActivityRow } from '@/components/ActivityRow';
 import { StartRunFAB } from '@/components/StartRunFAB';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
-import { fetchRecentActivities } from '@/services/strava';
+import { fetchRecentActivities, fetchFullHistory } from '@/services/strava';
 import { fetchDailyInsight } from '@/services/coach';
 import { greeting, formatDistance, formatPace, formatDurationHuman } from '@/utils/format';
 import { currentWeekStats } from '@/utils/stats';
@@ -34,11 +34,11 @@ export default function DashboardScreen() {
 
   const isDemo = tokens?.access_token === 'demo-access-token';
 
-  const syncStrava = async () => {
+  const syncStrava = async (full = false) => {
     if (!tokens || isDemo) return;
     try {
       setRefreshing(true);
-      const fresh = await fetchRecentActivities();
+      const fresh = full ? await fetchFullHistory() : await fetchRecentActivities();
       setActivities(fresh);
     } catch (err) {
       console.warn('[strava sync] failed', err);
@@ -58,8 +58,11 @@ export default function DashboardScreen() {
   };
 
   useEffect(() => {
-    if (activities.length === 0) syncStrava();
+    // First load: pull FULL history so 21k/42k PRs show up correctly.
+    // Subsequent pull-to-refresh only fetches recent runs (faster).
+    if (activities.length === 0) syncStrava(true);
     if (insights.length === 0) syncInsight();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasRealData = activities.length > 0;

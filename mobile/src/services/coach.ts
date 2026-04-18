@@ -28,15 +28,28 @@ export async function fetchDailyInsight(): Promise<CoachInsight> {
   return data;
 }
 
+export interface PlanGenContext {
+  goal: UserGoal;
+  training_days?: number[]; // 0=Mon..6=Sun
+  long_run_day?: number;
+  fitness_level?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+}
+
 /** Generate a personalized training plan based on user goal + Strava history */
-export async function generateTrainingPlan(goal: UserGoal): Promise<TrainingPlan> {
-  const { data } = await api.post<TrainingPlan>('/training/plan/generate', { goal });
+export async function generateTrainingPlan(
+  ctxOrGoal: UserGoal | PlanGenContext,
+): Promise<TrainingPlan> {
+  const body = 'goal' in ctxOrGoal ? ctxOrGoal : { goal: ctxOrGoal };
+  const { data } = await api.post<TrainingPlan>('/training/plan/generate', body);
   return data;
 }
 
 /** Adjust this week's plan based on last ~2 weeks of training */
-export async function adjustWeek(goal: UserGoal): Promise<TrainingPlan> {
-  const { data } = await api.post<TrainingPlan>('/training/plan/adjust', { goal });
+export async function adjustWeek(
+  ctxOrGoal: UserGoal | PlanGenContext,
+): Promise<TrainingPlan> {
+  const body = 'goal' in ctxOrGoal ? ctxOrGoal : { goal: ctxOrGoal };
+  const { data } = await api.post<TrainingPlan>('/training/plan/adjust', body);
   return data;
 }
 
