@@ -2,10 +2,7 @@ import React, { useEffect } from 'react';
 import {
   StyleSheet,
   View,
-  Image,
   Dimensions,
-  ImageBackground,
-  Pressable,
   Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,8 +18,6 @@ import { useStravaAuthRequest, fetchRecentActivities } from '@/services/strava';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
 
-const { height } = Dimensions.get('window');
-
 export default function OnboardingScreen() {
   const router = useRouter();
   const { request, response, promptAsync } = useStravaAuthRequest();
@@ -35,8 +30,6 @@ export default function OnboardingScreen() {
       if (response?.type === 'success') {
         try {
           await setTokens(response.tokens);
-          // Populate the user profile from Strava athlete data so downstream
-          // screens (goal, profile) that read `user` from the store don't see null.
           const athlete = response.tokens.athlete;
           await setUser({
             stravaId: athlete.id,
@@ -54,8 +47,6 @@ export default function OnboardingScreen() {
             },
             onboarded: false,
           });
-          // Navigate immediately. Pull activities in the background so a slow
-          // or unreachable backend doesn't block the onboarding flow.
           router.replace('/(auth)/goal');
           fetchRecentActivities()
             .then((activities) => setActivities(activities))
@@ -71,50 +62,10 @@ export default function OnboardingScreen() {
           'Erro ao conectar',
           `${response.error}\n\nVerifique:\n1. Backend rodando (docker compose up)\n2. STRAVA_CLIENT_SECRET preenchido em backend/.env\n3. "Authorization Callback Domain" no Strava = localhost`,
         );
-      } else if (response?.type === 'cancel') {
-        // User backed out of the browser — no action needed.
       }
     };
     handle();
   }, [response, router, setTokens, setUser, setActivities]);
-
-  // Dev-only shortcut — bypasses Strava + backend and drops into the app
-  // with a fully onboarded demo user. Hidden in production builds.
-  const handleDemoMode = async () => {
-    await setTokens({
-      access_token: 'demo-access-token',
-      refresh_token: 'demo-refresh-token',
-      expires_at: Math.floor(Date.now() / 1000) + 6 * 3600,
-      athlete: {
-        id: 99999,
-        firstname: 'Victor',
-        lastname: 'Demo',
-        profile: '',
-        profile_medium: '',
-        measurement_preference: 'meters',
-        date_preference: '',
-      } as any,
-    });
-    await setUser({
-      stravaId: 99999,
-      name: 'Victor Demo',
-      avatar: '',
-      weight: 72,
-      height: 178,
-      age: 30,
-      weeklyGoalKm: 50,
-      trainingDaysPerWeek: 4,
-      fitnessLevel: 'intermediate',
-      mainGoal: {
-        id: 'demo-goal',
-        type: '21k',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-      },
-      onboarded: true,
-    });
-    router.replace('/(tabs)');
-  };
 
   return (
     <View style={styles.container}>
@@ -191,17 +142,6 @@ export default function OnboardingScreen() {
                 Seguro. Abrimos o Strava pra você autorizar — nada de senha no Vincere.
               </Text>
             </View>
-
-            {/* Dev-only demo mode bypass — only renders in development builds */}
-            {__DEV__ && (
-              <Pressable onPress={handleDemoMode} style={styles.demoButton}>
-                <Ionicons name="flask-outline" size={16} color={Colors.tertiary} />
-                <Text variant="caption" color={Colors.tertiary} weight="semibold" tracking="wider">
-                  MODO DEMO (só dev) — pular Strava
-                </Text>
-                <Ionicons name="arrow-forward" size={14} color={Colors.tertiary} />
-              </Pressable>
-            )}
 
             <Text
               variant="caption"
@@ -334,17 +274,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: Colors.primary + '30',
-  },
-  demoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    marginTop: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.tertiary + '40',
-    borderStyle: 'dashed',
   },
 });
