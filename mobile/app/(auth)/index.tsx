@@ -54,15 +54,14 @@ export default function OnboardingScreen() {
             },
             onboarded: false,
           });
-          // Eagerly pull the athlete's recent activities so the app has real
-          // data the moment the user lands on the dashboard.
-          try {
-            const activities = await fetchRecentActivities();
-            setActivities(activities);
-          } catch (syncErr) {
-            console.warn('[strava] initial sync failed — will retry on dashboard', syncErr);
-          }
+          // Navigate immediately. Pull activities in the background so a slow
+          // or unreachable backend doesn't block the onboarding flow.
           router.replace('/(auth)/goal');
+          fetchRecentActivities()
+            .then((activities) => setActivities(activities))
+            .catch((syncErr) =>
+              console.warn('[strava] initial sync failed — will retry on dashboard', syncErr),
+            );
         } catch (err: any) {
           console.error('[strava] save tokens failed', err);
           Alert.alert('Erro ao salvar tokens', err?.message ?? 'Falha inesperada.');
