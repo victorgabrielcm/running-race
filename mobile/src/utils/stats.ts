@@ -80,18 +80,25 @@ const PR_DISTANCES: { label: string; meters: number }[] = [
   { label: '5k', meters: 5000 },
   { label: '10k', meters: 10000 },
   { label: '21k', meters: 21097 },
+  { label: '42k', meters: 42195 },
+  { label: 'Ultra', meters: 50000 },
 ];
 
+export type PersonalRecordSlot = {
+  distance: string; // "1km" | "5k" | "10k" | "21k" | "42k" | "Ultra"
+  record: PerformanceRecord | null; // null = ainda não conquistado
+};
+
 /**
- * Approximate PRs: the fastest pace on any run whose total distance is ≥
- * the target. Not a true PR (needs stream data to isolate splits) but the
- * best we can do without premium Strava endpoints.
+ * Returns ALL milestone distances. Slots without an eligible run get `record: null`
+ * so the UI can render "Pendente". Same pace-extrapolation logic as before —
+ * approximate PRs built from runs that covered at least the distance in question.
  */
-export function personalRecords(activities: StravaActivity[]): PerformanceRecord[] {
+export function personalRecordSlots(activities: StravaActivity[]): PersonalRecordSlot[] {
   const runs = onlyRuns(activities);
   return PR_DISTANCES.map(({ label, meters }) => {
     const candidates = runs.filter((a) => a.distance >= meters && a.moving_time > 0);
-    if (candidates.length === 0) return null;
+    if (candidates.length === 0) return { distance: label, record: null };
     const best = candidates.reduce((prev, cur) => {
       const prevPace = prev.moving_time / (prev.distance / 1000);
       const curPace = cur.moving_time / (cur.distance / 1000);
@@ -101,10 +108,22 @@ export function personalRecords(activities: StravaActivity[]): PerformanceRecord
     const time = pace * (meters / 1000);
     return {
       distance: label,
-      time: Math.round(time),
-      pace: Math.round(pace),
-      date: best.start_date,
-      stravaActivityId: best.id,
+      record: {
+        distance: label,
+        time: Math.round(time),
+        pace: Math.round(pace),
+        date: best.start_date,
+        stravaActivityId: best.id,
+      },
     };
-  }).filter((r): r is PerformanceRecord => r !== null);
+  });
+}
+
+/**
+ * Legacy: only conquered PRs (filtered). Kept for backwards compat.
+ */
+export function personalRecords(activities: StravaActivity[]): PerformanceRecord[] {
+  return personalRecordSlots(activities)
+    .filter((s) => s.record !== null)
+    .map((s) => s.record as PerformanceRecord);
 }

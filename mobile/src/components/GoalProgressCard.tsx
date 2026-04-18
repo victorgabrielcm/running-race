@@ -2,26 +2,47 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Gradients, Spacing, Radius } from '@/theme';
+import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from './ui/Text';
 import { ProgressBar } from './ui/ProgressBar';
 import type { UserGoal } from '@/types';
 
 interface Props {
   goal: UserGoal;
-  currentDistance?: number; // km completed toward goal
+  currentWeek?: number;
+  totalWeeks?: number;
   daysRemaining?: number;
-  projection?: string; // "You'll hit 10k in 48:25"
+  feasibility?: {
+    verdict: 'feasible' | 'tight' | 'risky' | 'impossible';
+    reason?: string;
+  };
+  projection?: string;
 }
+
+const verdictLabel: Record<NonNullable<Props['feasibility']>['verdict'], string> = {
+  feasible: 'NO PRAZO',
+  tight: 'APERTADO',
+  risky: 'ARRISCADO',
+  impossible: 'INVIÁVEL',
+};
+
+const verdictColor: Record<NonNullable<Props['feasibility']>['verdict'], string> = {
+  feasible: Colors.primary,
+  tight: Colors.tertiary,
+  risky: Colors.secondary,
+  impossible: Colors.secondary,
+};
 
 export function GoalProgressCard({
   goal,
-  currentDistance = 0,
+  currentWeek,
+  totalWeeks,
   daysRemaining,
+  feasibility,
   projection,
 }: Props) {
-  const targetKm = parseInt(goal.type.replace('k', '')) || 0;
-  const progress = targetKm > 0 ? currentDistance / targetKm : 0;
+  const hasPlan = !!(currentWeek && totalWeeks);
+  const planProgress = hasPlan ? (currentWeek! - 1) / totalWeeks! : 0;
 
   return (
     <View style={styles.card}>
@@ -33,7 +54,7 @@ export function GoalProgressCard({
       />
 
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text variant="label" color={Colors.primary} tracking="wider">
             META PRINCIPAL
           </Text>
@@ -63,25 +84,38 @@ export function GoalProgressCard({
         </View>
       ) : null}
 
-      <View style={styles.progressSection}>
-        <View style={styles.progressHeader}>
-          <Text variant="caption" color={Colors.textSecondary} uppercase tracking="wider">
-            Progresso da semana
+      {feasibility ? (
+        <View style={[styles.verdictBadge, { borderColor: verdictColor[feasibility.verdict] + '60' }]}>
+          <View style={[styles.verdictDot, { backgroundColor: verdictColor[feasibility.verdict] }]} />
+          <Text variant="label" color={verdictColor[feasibility.verdict]} tracking="wider">
+            {verdictLabel[feasibility.verdict]}
           </Text>
-          <Text variant="bodyMedium" color={Colors.primary}>
-            {Math.round(progress * 100)}%
-          </Text>
+          {feasibility.reason ? (
+            <Text variant="caption" color={Colors.textSecondary} style={{ flex: 1 }} numberOfLines={2}>
+              {feasibility.reason}
+            </Text>
+          ) : null}
         </View>
-        <ProgressBar value={progress} color={Colors.primary} height={8} />
-        <View style={styles.kmRow}>
-          <Text variant="caption" color={Colors.textSecondary}>
-            {currentDistance.toFixed(1)} km
-          </Text>
-          <Text variant="caption" color={Colors.textTertiary}>
-            Meta: {targetKm} km
-          </Text>
+      ) : null}
+
+      {hasPlan ? (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text variant="caption" color={Colors.textSecondary} uppercase tracking="wider">
+              Progresso do plano
+            </Text>
+            <Text variant="bodyMedium" color={Colors.primary}>
+              {Math.round(planProgress * 100)}%
+            </Text>
+          </View>
+          <ProgressBar value={planProgress} color={Colors.primary} height={8} />
+          <View style={styles.kmRow}>
+            <Text variant="caption" color={Colors.textSecondary}>
+              Semana {currentWeek} de {totalWeeks}
+            </Text>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       {projection ? (
         <View style={styles.projection}>
@@ -142,6 +176,21 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 2,
     backgroundColor: Colors.textTertiary,
+  },
+  verdictBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+  },
+  verdictDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   progressSection: {
     marginTop: Spacing.xl,

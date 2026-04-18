@@ -13,7 +13,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
 import { mockPlan, mockActivities } from '@/mock/data';
 import { formatTime, formatPace } from '@/utils/format';
-import { lastNWeeks, personalRecords } from '@/utils/stats';
+import { lastNWeeks, personalRecordSlots } from '@/utils/stats';
 
 const { width } = Dimensions.get('window');
 
@@ -29,11 +29,17 @@ export default function ProgressScreen() {
     createdAt: new Date().toISOString(),
   });
 
+  const plan = useTrainingStore((s) => s.plan);
   const hasRealData = activities.length > 0;
   const source = hasRealData ? activities : mockActivities;
 
   const weeks = useMemo(() => lastNWeeks(source, 6), [source]);
-  const records = useMemo(() => personalRecords(source), [source]);
+  const recordSlots = useMemo(() => personalRecordSlots(source), [source]);
+
+  // Days until race
+  const daysRemaining = goal?.targetDate
+    ? Math.max(0, Math.ceil((new Date(goal.targetDate).getTime() - Date.now()) / 86400000))
+    : undefined;
 
   const chartConfig = {
     backgroundGradientFrom: Colors.card,
@@ -83,9 +89,9 @@ export default function ProgressScreen() {
           <Animated.View entering={FadeInDown.duration(500).delay(100)}>
             <GoalProgressCard
               goal={goal as any}
-              currentDistance={35}
-              daysRemaining={70}
-              projection="No ritmo atual, você completa a maratona em 3h28"
+              currentWeek={plan?.currentWeek}
+              totalWeeks={plan?.totalWeeks}
+              daysRemaining={daysRemaining}
             />
           </Animated.View>
         ) : null}
@@ -188,7 +194,7 @@ export default function ProgressScreen() {
           </View>
         </Animated.View>
 
-        {/* Personal records */}
+        {/* Personal records — vertical list, all distances */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)}>
           <Text
             variant="label"
@@ -198,33 +204,67 @@ export default function ProgressScreen() {
           >
             RECORDES PESSOAIS
           </Text>
-          <View style={styles.records}>
-            {records.length === 0 ? (
-              <View style={[styles.recordCard, { minWidth: '100%' }]}>
-                <Text variant="caption" color={Colors.textSecondary}>
-                  Ainda não há corridas suficientes para calcular PRs. Suas 4
-                  próximas distâncias marco (1km, 5k, 10k, 21k) aparecem aqui
-                  conforme você acumula histórico no Strava.
-                </Text>
-              </View>
-            ) : (
-              records.map((r) => (
-                <View key={r.distance} style={styles.recordCard}>
-                  <View style={styles.recordHeader}>
-                    <Text variant="h3" color={Colors.tertiary}>
-                      {r.distance.toUpperCase()}
-                    </Text>
-                    <Ionicons name="trophy" size={14} color={Colors.tertiary} />
+          <View style={styles.recordList}>
+            {recordSlots.map((slot) => {
+              const conquered = slot.record !== null;
+              return (
+                <View
+                  key={slot.distance}
+                  style={[
+                    styles.recordRow,
+                    conquered ? styles.recordRowDone : styles.recordRowPending,
+                  ]}
+                >
+                  <View style={styles.recordLeft}>
+                    <View
+                      style={[
+                        styles.recordIconBox,
+                        {
+                          backgroundColor: conquered
+                            ? Colors.tertiary + '22'
+                            : Colors.card,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={conquered ? 'trophy' : 'lock-closed'}
+                        size={14}
+                        color={conquered ? Colors.tertiary : Colors.textTertiary}
+                      />
+                    </View>
+                    <View>
+                      <Text
+                        variant="h3"
+                        color={conquered ? Colors.textPrimary : Colors.textSecondary}
+                      >
+                        {slot.distance.toUpperCase()}
+                      </Text>
+                      {conquered ? (
+                        <Text variant="caption" color={Colors.textSecondary}>
+                          {formatPace(slot.record!.pace)} /km
+                        </Text>
+                      ) : (
+                        <Text variant="caption" color={Colors.textTertiary}>
+                          Sem registro ainda
+                        </Text>
+                      )}
+                    </View>
                   </View>
-                  <Text variant="metric" color={Colors.textPrimary} style={{ marginTop: 8 }}>
-                    {formatTime(r.time)}
-                  </Text>
-                  <Text variant="caption" color={Colors.textSecondary}>
-                    {formatPace(r.pace)} /km
-                  </Text>
+
+                  {conquered ? (
+                    <Text variant="metric" color={Colors.textPrimary} style={styles.recordTime}>
+                      {formatTime(slot.record!.time)}
+                    </Text>
+                  ) : (
+                    <View style={styles.pendingBadge}>
+                      <Text variant="label" color={Colors.textTertiary} tracking="wider">
+                        PENDENTE
+                      </Text>
+                    </View>
+                  )}
                 </View>
-              ))
-            )}
+              );
+            })}
           </View>
         </Animated.View>
 
@@ -266,23 +306,49 @@ const styles = StyleSheet.create({
   chart: {
     marginLeft: -Spacing.base,
   },
-  records: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.md,
+  recordList: {
+    gap: Spacing.sm,
   },
-  recordCard: {
-    flex: 1,
-    minWidth: '45%',
+  recordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: Colors.card,
     borderRadius: Radius.xl,
-    padding: Spacing.base,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.base,
     borderWidth: 1,
-    borderColor: Colors.tertiary + '30',
   },
-  recordHeader: {
+  recordRowDone: {
+    borderColor: Colors.tertiary + '40',
+  },
+  recordRowPending: {
+    borderColor: Colors.borderSubtle,
+    opacity: 0.85,
+  },
+  recordLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.md,
+  },
+  recordIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  recordTime: {
+    textAlign: 'right',
+  },
+  pendingBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
   },
 });
