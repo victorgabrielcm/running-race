@@ -1,19 +1,21 @@
 """
-Claude AI service — the brain of Vincere.
+AI service — the brain of Vincere.
 
-Wraps the Anthropic SDK with domain-specific prompts:
-- coaching chat (multi-turn)
-- daily insight generation
-- training plan generation
-- activity analysis
+Supports two providers via AI_PROVIDER env var:
+- `groq`      → Llama 3.3 70B (grátis, OpenAI-compatible API)
+- `anthropic` → Claude (pago)
+
+Exports `claude_service` for backwards compat; it's provider-agnostic.
 """
 
 from __future__ import annotations
 import json
+import re
 import uuid
 from datetime import datetime
 from typing import List, Optional
 
+import httpx
 from anthropic import AsyncAnthropic
 from app.config import settings
 from app.models.schemas import (
@@ -23,7 +25,6 @@ from app.models.schemas import (
     UserGoal,
     TrainingPlan,
     TrainingWeek,
-    Workout,
 )
 
 
@@ -45,20 +46,98 @@ progress toward their specific goal.
 """
 
 PLAN_SYSTEM = """You are an elite running coach designing a training plan.
-Output ONLY valid JSON matching the schema provided. No markdown, no commentary.
+Output ONLY valid JSON matching the schema provided. No markdown, no commentary,
+no code fences. Start your response with { and end with }.
 """
 
 INSIGHT_SYSTEM = """You are Vincere Coach analyzing the last 7 days of training.
 Output exactly one concise insight as JSON: {"type": "tip|warning|achievement|adjustment",
 "title": "...", "body": "...", "action": "optional CTA"}.
 Title ≤ 60 chars. Body ≤ 160 chars. In Brazilian Portuguese.
+No markdown, no code fences. Start response with { and end with }.
 """
 
 
-class ClaudeService:
+def _strip_code_fences(text: str) -> str:
+    """LLMs often wrap JSON in ```json ... ``` despite instructions to the contrary."""
+    text = text.strip()
+    if text.startswith("```"):
+        # remove opening fence (```json or ```)
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        # remove closing fence
+        text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+class AIService:
     def __init__(self) -> None:
-        self.client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-        self.model = settings.claude_model
+        self.provider = settings.ai_provider.lower()
+        # Anthropic
+        self._anthropic: Optional[AsyncAnthropic] = None
+        if settings.anthropic_api_key:
+            self._anthropic = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        # Groq
+        self._groq_key = settings.groq_api_key
+        # Auto-fallback: if groq is configured but no key, try anthropic
+        if self.provider == "groq" and not self._groq_key and self._anthropic:
+            self.provider = "anthropic"
+        if self.provider == "anthropic" and not self._anthropic and self._groq_key:
+            self.provider = "groq"
+
+    # ─── Provider dispatch ────────────────────────────────────────────────
+
+    async def _chat_raw(
+        self,
+        system: str,
+        messages: list[dict],
+        max_tokens: int = 1024,
+    ) -> str:
+        if self.provider == "groq":
+            return await self._groq_chat(system, messages, max_tokens)
+        if self.provider == "anthropic":
+            return await self._anthropic_chat(system, messages, max_tokens)
+        raise RuntimeError(
+            f"No AI provider configured. Set GROQ_API_KEY or ANTHROPIC_API_KEY in backend/.env"
+        )
+
+    async def _anthropic_chat(
+        self, system: str, messages: list[dict], max_tokens: int
+    ) -> str:
+        if not self._anthropic:
+            raise RuntimeError("ANTHROPIC_API_KEY not set")
+        resp = await self._anthropic.messages.create(
+            model=settings.claude_model,
+            max_tokens=max_tokens,
+            system=system,
+            messages=messages,
+        )
+        return "".join(
+            b.text for b in resp.content if getattr(b, "type", "") == "text"
+        )
+
+    async def _groq_chat(
+        self, system: str, messages: list[dict], max_tokens: int
+    ) -> str:
+        if not self._groq_key:
+            raise RuntimeError("GROQ_API_KEY not set")
+        oai_messages = [{"role": "system", "content": system}] + messages
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self._groq_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": settings.groq_model,
+                    "messages": oai_messages,
+                    "max_tokens": max_tokens,
+                    "temperature": 0.7,
+                },
+            )
+            r.raise_for_status()
+            data = r.json()
+            return data["choices"][0]["message"]["content"]
 
     # ─── Chat ────────────────────────────────────────────────────────────
 
@@ -77,15 +156,7 @@ class ClaudeService:
         if context:
             system += f"\n\nATHLETE CONTEXT:\n{json.dumps(context, default=str, ensure_ascii=False)}"
 
-        resp = await self.client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            system=system,
-            messages=messages,
-        )
-        text = "".join(
-            block.text for block in resp.content if getattr(block, "type", "") == "text"
-        )
+        text = await self._chat_raw(system, messages, max_tokens=1024)
         return CoachMessage(
             id=f"a_{uuid.uuid4().hex[:12]}",
             role="assistant",
@@ -108,15 +179,12 @@ class ClaudeService:
             "Generate ONE insight."
         )
 
-        resp = await self.client.messages.create(
-            model=self.model,
+        text = await self._chat_raw(
+            INSIGHT_SYSTEM,
+            [{"role": "user", "content": prompt}],
             max_tokens=512,
-            system=INSIGHT_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
         )
-        text = "".join(
-            b.text for b in resp.content if getattr(b, "type", "") == "text"
-        ).strip()
+        text = _strip_code_fences(text)
 
         try:
             data = json.loads(text)
@@ -187,15 +255,12 @@ Schema (Brazilian Portuguese titles/descriptions):
 {json.dumps(schema, indent=2)}
 """
 
-        resp = await self.client.messages.create(
-            model=self.model,
+        text = await self._chat_raw(
+            PLAN_SYSTEM,
+            [{"role": "user", "content": prompt}],
             max_tokens=4096,
-            system=PLAN_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
         )
-        text = "".join(
-            b.text for b in resp.content if getattr(b, "type", "") == "text"
-        ).strip()
+        text = _strip_code_fences(text)
 
         try:
             data = json.loads(text)
@@ -239,7 +304,7 @@ Schema (Brazilian Portuguese titles/descriptions):
         return max(4, min(24, delta // 7))
 
     def _fallback_plan(self, goal: UserGoal, weeks: int) -> TrainingPlan:
-        """Deterministic fallback when Claude returns malformed JSON."""
+        """Deterministic fallback when the LLM returns malformed JSON."""
         now = datetime.utcnow().isoformat()
         return TrainingPlan(
             id=f"plan_{uuid.uuid4().hex[:10]}",
@@ -254,4 +319,5 @@ Schema (Brazilian Portuguese titles/descriptions):
         )
 
 
-claude_service = ClaudeService()
+# Backwards-compat export: routers import `claude_service`
+claude_service = AIService()
