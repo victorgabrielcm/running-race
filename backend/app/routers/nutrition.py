@@ -1,91 +1,73 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from typing import Optional
 
-from app.models.schemas import NutritionDay, Meal, MealSuggestion
+from fastapi import APIRouter, Body, Header
+
+from app.models.schemas import NutritionDay
+from app.services.claude_service import claude_service
+from app.services.strava_service import strava_service
+
 
 router = APIRouter()
 
 
-@router.get("/today", response_model=NutritionDay)
-async def today():
+def _extract_token(authorization: Optional[str]) -> Optional[str]:
+    if authorization and authorization.startswith("Bearer "):
+        return authorization.split(" ", 1)[1]
+    return None
+
+
+@router.post("/today", response_model=NutritionDay)
+async def today(
+    payload: dict = Body(default_factory=dict),
+    authorization: Optional[str] = Header(default=None),
+):
     """
-    Returns today's nutrition plan. In production this is computed from:
-    - Today's workout (carb/calorie load)
-    - Athlete's weight & goal
-    - Recent training stress
+    Generates today's nutrition plan based on:
+    - Today's scheduled workout (workout_type + distance + duration)
+    - Athlete's weight (kg)
+    - Training load bucket from workout type
+
+    Body (optional):
+      { "workout_type": "tempo", "workout_distance_km": 10, "workout_duration_min": 48, "weight_kg": 75 }
+
+    If weight_kg is omitted and a valid Strava token is provided, the Strava
+    profile weight is used. Defaults to 70kg if nothing is available.
     """
     today_iso = datetime.utcnow().date().isoformat()
-    return NutritionDay(
-        date=today_iso,
-        trainingLoad="moderate",
-        calories=2850,
-        carbs=420,
-        protein=130,
-        fat=80,
-        hydration=3.2,
-        meals=[
-            Meal(
-                time="07:00",
-                name="Café da manhã",
-                calories=620,
-                carbs=90,
-                protein=28,
-                fat=18,
-                foods=["Aveia com banana", "Ovos mexidos", "Café preto"],
-            ),
-            Meal(
-                time="10:30",
-                name="Lanche pré-treino",
-                calories=280,
-                carbs=55,
-                protein=8,
-                fat=4,
-                foods=["Banana", "Tâmaras", "Pasta de amendoim"],
-            ),
-            Meal(
-                time="13:00",
-                name="Almoço",
-                calories=820,
-                carbs=110,
-                protein=40,
-                fat=22,
-                foods=["Arroz integral", "Frango grelhado", "Salada verde", "Batata doce"],
-            ),
-            Meal(
-                time="16:30",
-                name="Lanche pós-treino",
-                calories=420,
-                carbs=60,
-                protein=30,
-                fat=10,
-                foods=["Shake de whey", "Aveia", "Mel", "Frutas vermelhas"],
-            ),
-            Meal(
-                time="20:00",
-                name="Jantar",
-                calories=710,
-                carbs=95,
-                protein=35,
-                fat=22,
-                foods=["Macarrão integral", "Molho com carne", "Legumes"],
-            ),
-        ],
-        preRun=MealSuggestion(
-            timing="90 min antes",
-            description="Carboidratos de digestão lenta + dose de cafeína.",
-            foods=["Aveia", "1 banana", "Café"],
-            notes="Evite gorduras e fibras pesadas. Hidrate-se com 500ml de água.",
-        ),
-        duringRun=MealSuggestion(
-            timing="A cada 35-45 min",
-            description="Carboidratos de rápida absorção.",
-            foods=["Gel 25g carbo", "150ml isotônico"],
-            notes="Alterne gel e isotônico em corridas > 90min.",
-        ),
-        postRun=MealSuggestion(
-            timing="Até 30 min após",
-            description="Janela anabólica — reponha glicogênio e acelere recuperação.",
-            foods=["Whey 30g", "Banana", "Tâmaras"],
-            notes="Proporção 3:1 carbo:proteína. Reidrate com 150% do peso perdido.",
-        ),
+
+    weight_kg = payload.get("weight_kg")
+    if not weight_kg:
+        token = _extract_token(authorization)
+        if token:
+            try:
+                profile = await strava_service.fetch_athlete(token)
+                if profile.get("weight"):
+                    weight_kg = float(profile["weight"])
+            except Exception:
+                pass
+    weight_kg = float(weight_kg or 70)
+
+    workout_type = payload.get("workout_type", "easy_run")
+    workout_distance_km = payload.get("workout_distance_km")
+    workout_duration_min = payload.get("workout_duration_min")
+
+    return await claude_service.generate_nutrition_day(
+        date_iso=today_iso,
+        weight_kg=weight_kg,
+        workout_type=workout_type,
+        workout_distance_km=workout_distance_km,
+        workout_duration_min=workout_duration_min,
+    )
+
+
+# Legacy GET kept for backwards compat — returns nutrition assuming a moderate
+# training day and default 70kg athlete. New clients should POST with context.
+@router.get("/today", response_model=NutritionDay)
+async def today_default():
+    today_iso = datetime.utcnow().date().isoformat()
+    return await claude_service.generate_nutrition_day(
+        date_iso=today_iso,
+        weight_kg=70,
+        workout_type="easy_run",
     )

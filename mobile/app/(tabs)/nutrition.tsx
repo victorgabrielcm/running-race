@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, View, Pressable } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -8,10 +8,53 @@ import { Colors, Spacing, Radius } from '@/theme';
 import { Text } from '@/components/ui/Text';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { mockNutritionDay } from '@/mock/data';
+import { fetchNutritionToday } from '@/services/coach';
+import { useAuthStore } from '@/stores/authStore';
+import { useTrainingStore } from '@/stores/trainingStore';
+import type { NutritionDay } from '@/types';
+
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function NutritionScreen() {
-  const day = mockNutritionDay;
+  const user = useAuthStore((s) => s.user);
+  const plan = useTrainingStore((s) => s.plan);
+  const [day, setDay] = useState<NutritionDay>(mockNutritionDay);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isMock, setIsMock] = useState(true);
   const [tab, setTab] = useState<'plan' | 'timing'>('plan');
+
+  const loadNutrition = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const iso = todayISO();
+      const todayWorkout = plan?.weeks[0]?.workouts.find(
+        (w) => w.date?.slice(0, 10) === iso,
+      );
+      const data = await fetchNutritionToday({
+        workout_type: todayWorkout?.type ?? 'easy_run',
+        workout_distance_km: todayWorkout?.targetDistance,
+        workout_duration_min: todayWorkout?.targetDuration,
+        weight_kg: user?.weight,
+      });
+      setDay(data);
+      setIsMock(false);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail ?? err?.message ?? 'Erro desconhecido');
+      setIsMock(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNutrition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const macros = [
     { label: 'CARBO', value: day.carbs, color: Colors.primary, unit: 'g' },
@@ -33,6 +76,9 @@ export default function NutritionScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={loadNutrition} tintColor={Colors.primary} />
+        }
       >
         <Animated.View entering={FadeIn.duration(400)}>
           <Text variant="label" color={Colors.primary} tracking="wider">
@@ -43,13 +89,32 @@ export default function NutritionScreen() {
           </Text>
         </Animated.View>
 
-        {/* Demo data notice */}
-        <Animated.View entering={FadeIn.duration(400).delay(100)} style={styles.demoBanner}>
-          <Ionicons name="sparkles" size={16} color={Colors.tertiary} />
-          <Text variant="caption" color={Colors.tertiary} style={{ flex: 1 }}>
-            Plano de exemplo baseado em carga moderada. Em breve: cardápio personalizado pelo Coach IA com base nos seus treinos reais.
-          </Text>
-        </Animated.View>
+        {loading ? (
+          <View style={styles.loadingBanner}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+            <Text variant="caption" color={Colors.textSecondary}>
+              Gerando cardápio do dia com base no seu treino...
+            </Text>
+          </View>
+        ) : null}
+
+        {error ? (
+          <Animated.View entering={FadeIn.duration(400)} style={styles.errorBanner}>
+            <Ionicons name="alert-circle-outline" size={16} color={Colors.secondary} />
+            <Text variant="caption" color={Colors.secondary} style={{ flex: 1 }}>
+              Não consegui gerar: {error}. Mostrando exemplo.
+            </Text>
+          </Animated.View>
+        ) : null}
+
+        {isMock && !error && !loading ? (
+          <Animated.View entering={FadeIn.duration(400).delay(100)} style={styles.demoBanner}>
+            <Ionicons name="sparkles" size={16} color={Colors.tertiary} />
+            <Text variant="caption" color={Colors.tertiary} style={{ flex: 1 }}>
+              Plano de exemplo. Deslize pra baixo para gerar um cardápio personalizado.
+            </Text>
+          </Animated.View>
+        ) : null}
 
         {/* Load badge + calories */}
         <Animated.View entering={FadeInDown.duration(500).delay(100)} style={styles.heroCard}>
@@ -257,6 +322,26 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     borderWidth: 1,
     borderColor: Colors.tertiary + '30',
+  },
+  loadingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: Colors.secondary + '15',
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    borderWidth: 1,
+    borderColor: Colors.secondary + '40',
   },
   content: {
     paddingHorizontal: Spacing.screen,

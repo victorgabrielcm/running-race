@@ -68,6 +68,11 @@ class StravaService:
             r.raise_for_status()
             return StravaAthlete(**r.json())
 
+    # Public wrapper
+    async def fetch_athlete(self, access_token: str) -> dict:
+        athlete = await self._fetch_athlete(access_token)
+        return athlete.model_dump()
+
     async def fetch_activities(
         self, access_token: str, after: Optional[int] = None, per_page: int = 30
     ) -> List[StravaActivity]:

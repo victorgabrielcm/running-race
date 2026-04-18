@@ -5,6 +5,7 @@ import type {
   TrainingPlan,
   UserGoal,
   NutritionDay,
+  WorkoutType,
 } from '@/types';
 
 /** Stream-less coach chat — returns Claude's full response */
@@ -40,8 +41,13 @@ export async function adjustWeek(goal: UserGoal): Promise<TrainingPlan> {
 }
 
 /** Nutrition plan for today based on today's workout */
-export async function fetchNutritionToday(): Promise<NutritionDay> {
-  const { data } = await api.get<NutritionDay>('/nutrition/today');
+export async function fetchNutritionToday(params?: {
+  workout_type?: WorkoutType;
+  workout_distance_km?: number;
+  workout_duration_min?: number;
+  weight_kg?: number;
+}): Promise<NutritionDay> {
+  const { data } = await api.post<NutritionDay>('/nutrition/today', params ?? {});
   return data;
 }
 
