@@ -187,7 +187,7 @@ export default function DashboardScreen() {
           ) : null}
 
           <Animated.View entering={FadeInDown.duration(500).delay(200)}>
-            <AIInsightCard insight={mockInsight} />
+            <AIInsightCard insight={mockInsight} onPress={() => router.push('/coach')} />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.duration(500).delay(250)}>

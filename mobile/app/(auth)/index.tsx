@@ -35,6 +35,25 @@ export default function OnboardingScreen() {
       if (response?.type === 'success') {
         try {
           await setTokens(response.tokens);
+          // Populate the user profile from Strava athlete data so downstream
+          // screens (goal, profile) that read `user` from the store don't see null.
+          const athlete = response.tokens.athlete;
+          await setUser({
+            stravaId: athlete.id,
+            name: `${athlete.firstname} ${athlete.lastname}`.trim(),
+            avatar: athlete.profile_medium || athlete.profile || '',
+            weight: athlete.weight || undefined,
+            weeklyGoalKm: 50,
+            trainingDaysPerWeek: 4,
+            fitnessLevel: 'intermediate',
+            mainGoal: {
+              id: `goal_pending_${Date.now()}`,
+              type: '21k',
+              isActive: true,
+              createdAt: new Date().toISOString(),
+            },
+            onboarded: false,
+          });
           // Eagerly pull the athlete's recent activities so the app has real
           // data the moment the user lands on the dashboard.
           try {
@@ -58,7 +77,7 @@ export default function OnboardingScreen() {
       }
     };
     handle();
-  }, [response, router, setTokens, setActivities]);
+  }, [response, router, setTokens, setUser, setActivities]);
 
   // Dev-only shortcut — bypasses Strava + backend and drops into the app
   // with a fully onboarded demo user. Hidden in production builds.

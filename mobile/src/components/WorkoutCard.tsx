@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Gradients, Spacing, Radius, Shadow } from '@/theme';
@@ -30,6 +31,7 @@ const typeConfig: Record<
 };
 
 export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
+  const router = useRouter();
   const cfg = typeConfig[workout.type];
   const isToday = variant === 'today';
 
@@ -93,6 +95,7 @@ export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
 
       {isToday && !workout.completed ? (
         <Pressable
+          onPress={() => router.push('/run')}
           style={({ pressed }) => [
             styles.startBtn,
             pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
