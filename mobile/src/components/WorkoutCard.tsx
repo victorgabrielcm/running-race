@@ -30,10 +30,38 @@ const typeConfig: Record<
   rest: { label: 'Descanso', color: Colors.textTertiary, icon: 'bed' },
 };
 
+const WEEKDAYS_PT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+function isWorkoutToday(iso?: string): boolean {
+  if (!iso) return false;
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  return iso.slice(0, 10) === `${y}-${m}-${d}`;
+}
+
+function formatWorkoutDate(iso?: string): string | null {
+  if (!iso) return null;
+  // Parse as local date (not UTC) to avoid off-by-one at midnight boundaries
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const date = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000);
+  const prefix = diffDays === 0 ? 'HOJE · ' : diffDays === 1 ? 'AMANHÃ · ' : diffDays === -1 ? 'ONTEM · ' : '';
+  const wd = WEEKDAYS_PT[date.getDay()].toUpperCase();
+  const mo = MONTHS_PT[date.getMonth()].toUpperCase();
+  return `${prefix}${wd}, ${d} ${mo}`;
+}
+
 export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
   const router = useRouter();
   const cfg = typeConfig[workout.type];
   const isToday = variant === 'today';
+  const dateLabel = formatWorkoutDate(workout.date);
 
   const content = (
     <View style={[styles.card, isToday && styles.today]}>
@@ -62,6 +90,12 @@ export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
           </View>
         ) : null}
       </View>
+
+      {dateLabel ? (
+        <Text variant="label" color={Colors.textTertiary} tracking="wider" style={styles.dateLabel}>
+          {dateLabel}
+        </Text>
+      ) : null}
 
       <Text variant="h2" color={Colors.textPrimary} style={styles.title}>
         {workout.title}
@@ -93,7 +127,7 @@ export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
         ) : null}
       </View>
 
-      {isToday && !workout.completed ? (
+      {isToday && !workout.completed && workout.type !== 'rest' && isWorkoutToday(workout.date) ? (
         <Pressable
           onPress={() => router.push('/run')}
           style={({ pressed }) => [
@@ -186,8 +220,11 @@ const styles = StyleSheet.create({
   completed: {
     // no styles
   },
+  dateLabel: {
+    marginTop: Spacing.md,
+  },
   title: {
-    marginTop: Spacing.base,
+    marginTop: Spacing.xs,
   },
   desc: {
     marginTop: Spacing.sm,

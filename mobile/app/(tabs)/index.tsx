@@ -64,7 +64,16 @@ export default function DashboardScreen() {
 
   const hasRealData = activities.length > 0;
   const recentActivities = hasRealData ? activities : mockActivities;
-  const todayWorkout = plan?.weeks[0]?.workouts[0] ?? mockPlan.weeks[0].workouts[0];
+
+  // Find today's workout by matching ISO date (not array index)
+  const todayISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const currentPlanWeek = plan?.weeks[0] ?? mockPlan.weeks[0];
+  const todayWorkout =
+    currentPlanWeek.workouts.find((w) => w.date?.slice(0, 10) === todayISO) ??
+    currentPlanWeek.workouts[0];
   const weekStats = hasRealData ? currentWeekStats(activities) : mockWeeklyStats;
   const displayInsight = insights[0] ?? mockInsight;
 

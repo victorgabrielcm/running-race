@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,29 +12,154 @@ import { useTrainingStore } from '@/stores/trainingStore';
 import { useAuthStore } from '@/stores/authStore';
 import { generateTrainingPlan } from '@/services/coach';
 import { mockPlan } from '@/mock/data';
-import { formatDurationHuman } from '@/utils/format';
+import type { Workout, StravaActivity } from '@/types';
+import { formatPace, msToPace } from '@/utils/format';
 
 const weekdays = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+const MONTHS_ABBR = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+
+/** Returns ISO date (YYYY-MM-DD) in local time (not UTC). */
+function isoLocalDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Mon=0, Sun=6 — matches pt-BR week layout. */
+function weekdayIndexMon(d: Date): number {
+  return (d.getDay() + 6) % 7;
+}
+
+/** Start-of-week (Monday 00:00) for a given date. */
+function mondayOf(d: Date): Date {
+  const m = new Date(d);
+  m.setHours(0, 0, 0, 0);
+  m.setDate(m.getDate() - weekdayIndexMon(m));
+  return m;
+}
 
 export default function TrainingScreen() {
   const plan = useTrainingStore((s) => s.plan) ?? mockPlan;
   const setPlan = useTrainingStore((s) => s.setPlan);
+  const activities = useTrainingStore((s) => s.activities);
   const user = useAuthStore((s) => s.user);
-  const currentWeek = plan.weeks[0];
-  const [selectedDay, setSelectedDay] = useState(0);
+
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
+  const todayISO = isoLocalDate(today);
+
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = current week
+  const [selectedDate, setSelectedDate] = useState<string>(todayISO);
   const [generating, setGenerating] = useState(false);
+
+  // Compute the Monday of the displayed week
+  const weekStart = useMemo(() => {
+    const m = mondayOf(today);
+    m.setDate(m.getDate() + weekOffset * 7);
+    return m;
+  }, [today, weekOffset]);
+
+  const weekDates = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(weekStart.getDate() + i);
+        return d;
+      }),
+    [weekStart],
+  );
+
+  // Figure out which of the plan's weeks matches the displayed weekOffset.
+  // For week 0 we use weeks[0] (AI returns "current + 3 ahead").
+  const displayedWeek =
+    weekOffset >= 0 && plan.weeks[weekOffset] ? plan.weeks[weekOffset] : null;
+
+  const workoutsByDate = useMemo(() => {
+    const map: Record<string, Workout> = {};
+    if (displayedWeek) {
+      for (const w of displayedWeek.workouts) {
+        if (w.date) map[w.date.slice(0, 10)] = w;
+      }
+    }
+    return map;
+  }, [displayedWeek]);
+
+  const activitiesByDate = useMemo(() => {
+    const map: Record<string, StravaActivity> = {};
+    for (const a of activities) {
+      const iso = (a.start_date_local || a.start_date || '').slice(0, 10);
+      if (iso && !map[iso]) map[iso] = a;
+    }
+    return map;
+  }, [activities]);
+
+  // Fallback workout for days without a plan entry (rest) or when displaying past week
+  function dayItem(date: Date): Workout {
+    const iso = isoLocalDate(date);
+    const planned = workoutsByDate[iso];
+    if (planned) return planned;
+
+    // If past day has a Strava activity, synthesize a "completed" workout
+    const act = activitiesByDate[iso];
+    if (act) {
+      const km = act.distance / 1000;
+      const pace = msToPace(act.average_speed);
+      return {
+        id: `strava_${act.id}`,
+        type: 'easy_run',
+        title: act.name,
+        description: `Registrado no Strava · ${km.toFixed(1)}km em ${Math.round(act.moving_time / 60)}min`,
+        date: iso,
+        targetDistance: Math.round(km * 10) / 10,
+        targetPace: formatPace(pace),
+        targetDuration: Math.round(act.moving_time / 60),
+        completed: true,
+        stravaActivityId: act.id,
+      };
+    }
+
+    // Empty day → rest
+    return {
+      id: `rest_${iso}`,
+      type: 'rest',
+      title: 'Descanso',
+      description: 'Nenhum treino planejado.',
+      date: iso,
+      completed: false,
+    };
+  }
+
+  const selectedWorkout = useMemo(() => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    return dayItem(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, workoutsByDate, activitiesByDate]);
+
+  // Future cap: only next week is planned; no peeking further ahead
+  const canGoNext = weekOffset < Math.min(1, Math.max(0, plan.weeks.length - 1));
+  const canGoPrev = true; // past weeks always viewable (backed by Strava activities)
 
   const handleGenerateWeek = async () => {
     const goal = user?.mainGoal;
     if (!goal) {
-      Alert.alert('Meta não configurada', 'Configure sua meta principal nas configurações para gerar um plano personalizado.');
+      Alert.alert(
+        'Meta não configurada',
+        'Configure sua meta principal nas configurações para gerar um plano personalizado.',
+      );
       return;
     }
     setGenerating(true);
     try {
       const newPlan = await generateTrainingPlan(goal);
       setPlan(newPlan);
-      Alert.alert('Plano atualizado!', 'Sua próxima semana foi gerada com base nos seus treinos recentes.');
+      Alert.alert(
+        'Plano atualizado!',
+        'Sua próxima semana foi gerada com base nos seus treinos recentes.',
+      );
     } catch (err: any) {
       const status = err?.response?.status;
       const detail = err?.response?.data?.detail;
@@ -42,7 +167,7 @@ export default function TrainingScreen() {
       if (status) {
         msg = `Backend respondeu ${status}${detail ? `: ${detail}` : ''}.`;
       } else if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
-        msg = 'Timeout — Claude demorou mais de 30s. Tente de novo.';
+        msg = 'Timeout — a IA demorou mais de 30s. Tente de novo.';
       } else if (err?.message?.includes('Network')) {
         msg = 'Backend inacessível. Está rodando `docker compose up` em backend/?';
       } else {
@@ -71,14 +196,25 @@ export default function TrainingScreen() {
     recovery: Colors.zone1,
   };
 
-  const totalWorkouts = currentWeek.workouts.length;
-  const completed = currentWeek.workouts.filter((w) => w.completed).length;
-  const weekProgress = completed / totalWorkouts;
+  const weekPhase = displayedWeek?.phase ?? 'base';
+  const totalKm = displayedWeek?.totalKm ?? 0;
+  const totalWorkouts = displayedWeek?.workouts.length ?? 0;
+  const completed = displayedWeek
+    ? displayedWeek.workouts.filter((w) => w.completed || activitiesByDate[w.date?.slice(0, 10) ?? '']).length
+    : weekDates.filter((d) => activitiesByDate[isoLocalDate(d)]).length;
+  const weekProgress = totalWorkouts > 0 ? completed / totalWorkouts : 0;
 
-  const today = new Date();
-  const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
-  const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() + mondayOffset);
+  const weekRangeLabel = `${weekStart.getDate()} – ${weekDates[6].getDate()} ${MONTHS_ABBR[weekDates[6].getMonth()]}`;
+  const weekTitle =
+    weekOffset === 0
+      ? 'Esta semana'
+      : weekOffset === -1
+        ? 'Semana passada'
+        : weekOffset === 1
+          ? 'Próxima semana'
+          : weekOffset < 0
+            ? `${-weekOffset} semanas atrás`
+            : `Em ${weekOffset} semanas`;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -99,18 +235,12 @@ export default function TrainingScreen() {
           <View
             style={[
               styles.phaseBadge,
-              { borderColor: phaseColor[currentWeek.phase] + '50' },
+              { borderColor: phaseColor[weekPhase] + '50' },
             ]}
           >
-            <View
-              style={[styles.phaseDot, { backgroundColor: phaseColor[currentWeek.phase] }]}
-            />
-            <Text
-              variant="label"
-              color={phaseColor[currentWeek.phase]}
-              tracking="wider"
-            >
-              {phaseLabel[currentWeek.phase]}
+            <View style={[styles.phaseDot, { backgroundColor: phaseColor[weekPhase] }]} />
+            <Text variant="label" color={phaseColor[weekPhase]} tracking="wider">
+              {phaseLabel[weekPhase]}
             </Text>
           </View>
         </Animated.View>
@@ -122,7 +252,7 @@ export default function TrainingScreen() {
                 VOLUME
               </Text>
               <Text variant="metric" color={Colors.textPrimary}>
-                {currentWeek.totalKm}
+                {totalKm}
                 <Text variant="body" color={Colors.textSecondary}>
                   {' '}km
                 </Text>
@@ -135,7 +265,7 @@ export default function TrainingScreen() {
               <Text variant="metric" color={Colors.textPrimary}>
                 {completed}
                 <Text variant="body" color={Colors.textSecondary}>
-                  {' '}/ {totalWorkouts}
+                  {' '}/ {Math.max(totalWorkouts, completed)}
                 </Text>
               </Text>
             </View>
@@ -145,47 +275,91 @@ export default function TrainingScreen() {
           </View>
         </Animated.View>
 
-        {/* Week calendar */}
-        <Animated.View entering={FadeInDown.duration(500).delay(150)}>
-          <Text variant="label" color={Colors.textSecondary} tracking="wider" style={styles.sectionLabel}>
-            SEMANA
-          </Text>
+        {/* Week navigation header */}
+        <Animated.View entering={FadeInDown.duration(500).delay(130)}>
+          <View style={styles.weekNavRow}>
+            <Pressable
+              style={[styles.navBtn, !canGoPrev && styles.navBtnDisabled]}
+              onPress={() => canGoPrev && setWeekOffset((w) => w - 1)}
+              disabled={!canGoPrev}
+              hitSlop={8}
+            >
+              <Ionicons
+                name="chevron-back"
+                size={18}
+                color={canGoPrev ? Colors.textPrimary : Colors.textTertiary}
+              />
+            </Pressable>
+            <View style={{ alignItems: 'center' }}>
+              <Text variant="label" color={Colors.textSecondary} tracking="wider">
+                {weekTitle.toUpperCase()}
+              </Text>
+              <Text variant="bodyMedium" color={Colors.textPrimary} style={{ marginTop: 2 }}>
+                {weekRangeLabel}
+              </Text>
+            </View>
+            <Pressable
+              style={[styles.navBtn, !canGoNext && styles.navBtnDisabled]}
+              onPress={() => canGoNext && setWeekOffset((w) => w + 1)}
+              disabled={!canGoNext}
+              hitSlop={8}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={canGoNext ? Colors.textPrimary : Colors.textTertiary}
+              />
+            </Pressable>
+          </View>
+
           <View style={styles.weekRow}>
-            {weekdays.map((day, idx) => {
-              const workout = currentWeek.workouts[idx];
-              const hasWorkout = !!workout && workout.type !== 'rest';
-              const active = selectedDay === idx;
-              const cellDate = new Date(weekStart);
-              cellDate.setDate(weekStart.getDate() + idx);
+            {weekDates.map((date, idx) => {
+              const iso = isoLocalDate(date);
+              const workout = workoutsByDate[iso];
+              const activity = activitiesByDate[iso];
+              const hasActivity = workout
+                ? workout.type !== 'rest'
+                : !!activity;
+              const isSelected = selectedDate === iso;
+              const isToday = iso === todayISO;
+              const completedMark = !!activity || workout?.completed;
               return (
                 <Pressable
-                  key={day}
-                  onPress={() => setSelectedDay(idx)}
-                  style={[styles.dayCell, active && styles.dayCellActive]}
+                  key={iso}
+                  onPress={() => setSelectedDate(iso)}
+                  style={[
+                    styles.dayCell,
+                    isSelected && styles.dayCellActive,
+                    isToday && !isSelected && styles.dayCellToday,
+                  ]}
                 >
                   <Text
                     variant="label"
-                    color={active ? Colors.textInverse : Colors.textSecondary}
+                    color={isSelected ? Colors.textInverse : Colors.textSecondary}
                     tracking="wider"
                   >
-                    {day}
+                    {weekdays[idx]}
                   </Text>
                   <Text
                     variant="h3"
-                    color={active ? Colors.textInverse : Colors.textPrimary}
+                    color={isSelected ? Colors.textInverse : Colors.textPrimary}
                     style={{ marginTop: 4 }}
                   >
-                    {cellDate.getDate()}
+                    {date.getDate()}
                   </Text>
                   <View
                     style={[
                       styles.dayDot,
                       {
-                        backgroundColor: hasWorkout
-                          ? active
+                        backgroundColor: completedMark
+                          ? isSelected
                             ? Colors.textInverse
                             : Colors.primary
-                          : 'transparent',
+                          : hasActivity
+                            ? isSelected
+                              ? Colors.textInverse + '80'
+                              : Colors.primary + '60'
+                            : 'transparent',
                       },
                     ]}
                   />
@@ -195,7 +369,7 @@ export default function TrainingScreen() {
           </View>
         </Animated.View>
 
-        {/* Workouts list */}
+        {/* Selected day workout */}
         <Animated.View entering={FadeInDown.duration(500).delay(200)}>
           <Text
             variant="label"
@@ -203,16 +377,32 @@ export default function TrainingScreen() {
             tracking="wider"
             style={styles.sectionLabel}
           >
-            PRÓXIMOS TREINOS
+            {selectedDate === todayISO ? 'TREINO DE HOJE' : 'TREINO DO DIA'}
+          </Text>
+          <WorkoutCard workout={selectedWorkout} variant="today" />
+        </Animated.View>
+
+        {/* Rest of the week */}
+        <Animated.View entering={FadeInDown.duration(500).delay(250)}>
+          <Text
+            variant="label"
+            color={Colors.textSecondary}
+            tracking="wider"
+            style={styles.sectionLabel}
+          >
+            SEMANA COMPLETA
           </Text>
           <View style={styles.workoutsList}>
-            {currentWeek.workouts.map((workout, i) => (
-              <WorkoutCard
-                key={workout.id}
-                workout={workout}
-                variant={i === 0 ? 'today' : 'compact'}
-              />
-            ))}
+            {weekDates
+              .filter((d) => isoLocalDate(d) !== selectedDate)
+              .map((d) => (
+                <WorkoutCard
+                  key={isoLocalDate(d)}
+                  workout={dayItem(d)}
+                  variant="compact"
+                  onPress={() => setSelectedDate(isoLocalDate(d))}
+                />
+              ))}
           </View>
         </Animated.View>
 
@@ -235,7 +425,7 @@ export default function TrainingScreen() {
                 {generating ? 'Gerando plano...' : 'Gerar próxima semana com IA'}
               </Text>
               <Text variant="caption" color={Colors.textSecondary}>
-                Claude analisa seus últimos treinos e monta os próximos 7 dias.
+                A IA analisa seus últimos treinos e monta os próximos 7 dias.
               </Text>
             </View>
             {!generating && <Ionicons name="arrow-forward" size={18} color={Colors.primary} />}
@@ -287,6 +477,25 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginBottom: Spacing.md,
   },
+  weekNavRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  navBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navBtnDisabled: {
+    opacity: 0.4,
+  },
   weekRow: {
     flexDirection: 'row',
     gap: 6,
@@ -302,6 +511,9 @@ const styles = StyleSheet.create({
   },
   dayCellActive: {
     backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dayCellToday: {
     borderColor: Colors.primary,
   },
   dayDot: {
