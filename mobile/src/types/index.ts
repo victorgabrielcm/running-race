@@ -161,6 +161,15 @@ export interface NutritionDay {
   postRun?: MealSuggestion;
 }
 
+/** A nutrient slot with multiple interchangeable food options.
+ *  The UI renders the category label + grams + chips for each option so the user
+ *  can pick whichever they have/like without having to leave the app. */
+export interface FoodCategory {
+  category: string; // "Carboidrato complexo"
+  grams?: number;   // 60
+  options: string[]; // ["aveia", "tapioca", "batata-doce", ...]
+}
+
 export interface Meal {
   time: string;
   name: string;
@@ -168,13 +177,13 @@ export interface Meal {
   carbs: number;
   protein: number;
   fat: number;
-  foods: string[];
+  items: FoodCategory[];
 }
 
 export interface MealSuggestion {
   timing: string;
   description: string;
-  foods: string[];
+  items: FoodCategory[];
   notes: string;
 }
 

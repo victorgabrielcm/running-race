@@ -11,7 +11,7 @@ import { mockNutritionDay } from '@/mock/data';
 import { fetchNutritionToday } from '@/services/coach';
 import { useAuthStore } from '@/stores/authStore';
 import { useTrainingStore } from '@/stores/trainingStore';
-import type { NutritionDay } from '@/types';
+import type { NutritionDay, FoodCategory, MealSuggestion } from '@/types';
 
 function todayISO(): string {
   const d = new Date();
@@ -185,28 +185,23 @@ export default function NutritionScreen() {
 
         {tab === 'plan' ? (
           <Animated.View entering={FadeInDown.duration(400)} style={{ gap: Spacing.md }}>
-            {day.meals.map((meal, i) => (
-              <View key={meal.name} style={styles.mealCard}>
+            {day.meals.map((meal) => (
+              <View key={meal.time + meal.name} style={styles.mealCard}>
                 <View style={styles.mealHeader}>
                   <Text variant="label" color={Colors.primary} tracking="wider">
                     {meal.time}
                   </Text>
                   <Text variant="caption" color={Colors.textSecondary}>
-                    {meal.calories} kcal
+                    {meal.calories} kcal · {meal.carbs}C · {meal.protein}P · {meal.fat}G
                   </Text>
                 </View>
                 <Text variant="h3" color={Colors.textPrimary} style={{ marginTop: 4 }}>
                   {meal.name}
                 </Text>
-                <View style={styles.foods}>
-                  {meal.foods.map((food) => (
-                    <View key={food} style={styles.foodChip}>
-                      <Text variant="caption" color={Colors.textSecondary}>
-                        {food}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
+
+                {meal.items.map((item, idx) => (
+                  <FoodCategoryBlock key={`${meal.time}-${idx}`} item={item} />
+                ))}
               </View>
             ))}
           </Animated.View>
@@ -266,6 +261,35 @@ export default function NutritionScreen() {
   );
 }
 
+function FoodCategoryBlock({ item }: { item: FoodCategory }) {
+  return (
+    <View style={styles.categoryBlock}>
+      <View style={styles.categoryHeader}>
+        <Text variant="label" color={Colors.textSecondary} tracking="wider">
+          {item.category.toUpperCase()}
+        </Text>
+        {item.grams != null ? (
+          <Text variant="label" color={Colors.primary} tracking="wider">
+            {item.grams}g
+          </Text>
+        ) : null}
+      </View>
+      <Text variant="caption" color={Colors.textTertiary} style={{ marginTop: 2 }}>
+        Escolha 1:
+      </Text>
+      <View style={styles.optionsRow}>
+        {item.options.map((opt) => (
+          <View key={opt} style={styles.optionChip}>
+            <Text variant="caption" color={Colors.textPrimary}>
+              {opt}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function TimingCard({
   phase,
   color,
@@ -275,7 +299,7 @@ function TimingCard({
   phase: string;
   color: string;
   icon: keyof typeof Ionicons.glyphMap;
-  suggestion: { timing: string; description: string; foods: string[]; notes: string };
+  suggestion: MealSuggestion;
 }) {
   return (
     <View style={[styles.timingCard, { borderColor: color + '30' }]}>
@@ -295,15 +319,9 @@ function TimingCard({
       <Text variant="body" color={Colors.textPrimary} style={{ marginTop: Spacing.md }}>
         {suggestion.description}
       </Text>
-      <View style={styles.foodsRow}>
-        {suggestion.foods.map((food) => (
-          <View key={food} style={[styles.foodChip, { borderColor: color + '40' }]}>
-            <Text variant="caption" color={Colors.textPrimary}>
-              {food}
-            </Text>
-          </View>
-        ))}
-      </View>
+      {suggestion.items.map((item, idx) => (
+        <FoodCategoryBlock key={idx} item={item} />
+      ))}
       <Text variant="caption" color={Colors.textSecondary} style={{ marginTop: Spacing.md }}>
         {suggestion.notes}
       </Text>
@@ -422,13 +440,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  foods: {
+  categoryBlock: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.borderSubtle,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  optionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
-  foodChip: {
+  optionChip: {
     paddingHorizontal: Spacing.md,
     paddingVertical: 6,
     borderRadius: Radius.pill,
@@ -453,12 +482,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  foodsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: Spacing.md,
   },
   hydrationCard: {
     backgroundColor: Colors.card,

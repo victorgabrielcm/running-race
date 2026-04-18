@@ -73,20 +73,25 @@ export default function TrainingScreen() {
     [weekStart],
   );
 
-  // Figure out which of the plan's weeks matches the displayed weekOffset.
-  // For week 0 we use weeks[0] (AI returns "current + 3 ahead").
-  const displayedWeek =
-    weekOffset >= 0 && plan.weeks[weekOffset] ? plan.weeks[weekOffset] : null;
-
+  // Flatten ALL plan weeks into a single date-indexed map. The AI doesn't
+  // always respect the weeks[] ordering (sometimes returns 1 week, sometimes 4),
+  // so we match each displayed day by its ISO date directly.
   const workoutsByDate = useMemo(() => {
     const map: Record<string, Workout> = {};
-    if (displayedWeek) {
-      for (const w of displayedWeek.workouts) {
+    for (const week of plan.weeks) {
+      for (const w of week.workouts) {
         if (w.date) map[w.date.slice(0, 10)] = w;
       }
     }
     return map;
-  }, [displayedWeek]);
+  }, [plan.weeks]);
+
+  // Find the plan week whose startDate matches the displayed week's Monday.
+  // Used only for phase/totalKm header metadata.
+  const displayedWeek = useMemo(() => {
+    const startISO = isoLocalDate(weekStart);
+    return plan.weeks.find((w) => w.startDate?.slice(0, 10) === startISO) ?? null;
+  }, [plan.weeks, weekStart]);
 
   const activitiesByDate = useMemo(() => {
     const map: Record<string, StravaActivity> = {};
@@ -139,26 +144,20 @@ export default function TrainingScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, workoutsByDate, activitiesByDate]);
 
-  // Future cap: only next week is planned; no peeking further ahead
-  const canGoNext = weekOffset < Math.min(1, Math.max(0, plan.weeks.length - 1));
+  // Future cap: only the next week is visible (planned or not)
+  const canGoNext = weekOffset < 1;
   const canGoPrev = true; // past weeks always viewable (backed by Strava activities)
 
-  const handleGenerateWeek = async () => {
+  const runGeneration = async () => {
     const goal = user?.mainGoal;
-    if (!goal) {
-      Alert.alert(
-        'Meta não configurada',
-        'Configure sua meta principal nas configurações para gerar um plano personalizado.',
-      );
-      return;
-    }
+    if (!goal) return;
     setGenerating(true);
     try {
       const newPlan = await generateTrainingPlan(goal);
       setPlan(newPlan);
       Alert.alert(
         'Plano atualizado!',
-        'Sua próxima semana foi gerada com base nos seus treinos recentes.',
+        `Geradas ${newPlan.weeks.length} semanas a partir de ${newPlan.startDate}.`,
       );
     } catch (err: any) {
       const status = err?.response?.status;
@@ -178,6 +177,38 @@ export default function TrainingScreen() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleGenerateWeek = () => {
+    const goal = user?.mainGoal;
+    if (!goal) {
+      Alert.alert(
+        'Meta não configurada',
+        'Configure sua meta principal nas configurações para gerar um plano personalizado.',
+      );
+      return;
+    }
+
+    // Gate: if there's already a plan less than 6 days old, ask for confirmation
+    // to avoid inconsistency ("every click changes everything")
+    const existing = useTrainingStore.getState().plan;
+    const ageDays = existing?.lastUpdated
+      ? Math.floor((Date.now() - new Date(existing.lastUpdated).getTime()) / 86400000)
+      : 999;
+
+    if (existing && ageDays < 6) {
+      Alert.alert(
+        'Regenerar plano?',
+        `Seu plano atual tem ${ageDays} dia(s). Regenerar vai sobrescrevê-lo. Recomendado: só regenere no fim da semana para manter consistência.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Regenerar', style: 'destructive', onPress: runGeneration },
+        ],
+      );
+      return;
+    }
+
+    runGeneration();
   };
 
   const phaseLabel: Record<string, string> = {

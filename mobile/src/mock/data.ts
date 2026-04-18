@@ -187,6 +187,27 @@ export const mockWeeklyStats: WeeklyStats = {
   load: 420,
 };
 
+const CAT_CARB_COMPLEX = {
+  category: 'Carboidrato complexo',
+  options: ['aveia em flocos', 'pão integral', 'tapioca', 'batata-doce cozida', 'arroz integral'],
+};
+const CAT_CARB_SIMPLE = {
+  category: 'Carboidrato simples',
+  options: ['banana madura', 'mel', 'tâmaras', 'suco de uva integral'],
+};
+const CAT_PROT = {
+  category: 'Proteína magra',
+  options: ['claras de ovo', 'iogurte grego desnatado', 'whey isolate', 'queijo cottage', 'peito de frango grelhado'],
+};
+const CAT_FAT = {
+  category: 'Gordura boa',
+  options: ['pasta de amendoim', 'castanha-do-pará', 'abacate', 'chia', 'azeite extra-virgem'],
+};
+const CAT_FIBER = {
+  category: 'Fibras e micronutrientes',
+  options: ['salada verde variada', 'brócolis', 'tomate', 'cenoura ralada'],
+};
+
 export const mockNutritionDay: NutritionDay = {
   date: iso(0).split('T')[0],
   trainingLoad: 'moderate',
@@ -203,16 +224,23 @@ export const mockNutritionDay: NutritionDay = {
       carbs: 90,
       protein: 28,
       fat: 18,
-      foods: ['Aveia com banana', 'Ovos mexidos', 'Café preto'],
+      items: [
+        { ...CAT_CARB_COMPLEX, grams: 80 },
+        { ...CAT_PROT, grams: 28 },
+        { ...CAT_FAT, grams: 15 },
+      ],
     },
     {
       time: '10:30',
-      name: 'Lanche pré-treino',
+      name: 'Lanche da manhã',
       calories: 280,
       carbs: 55,
       protein: 8,
       fat: 4,
-      foods: ['Banana', 'Tâmaras', 'Pasta de amendoim'],
+      items: [
+        { ...CAT_CARB_SIMPLE, grams: 40 },
+        { ...CAT_FAT, grams: 8 },
+      ],
     },
     {
       time: '13:00',
@@ -221,16 +249,24 @@ export const mockNutritionDay: NutritionDay = {
       carbs: 110,
       protein: 40,
       fat: 22,
-      foods: ['Arroz integral', 'Frango grelhado', 'Salada verde', 'Batata doce'],
+      items: [
+        { ...CAT_CARB_COMPLEX, grams: 100 },
+        { ...CAT_PROT, grams: 40 },
+        { ...CAT_FIBER, grams: 150 },
+        { ...CAT_FAT, grams: 15 },
+      ],
     },
     {
       time: '16:30',
-      name: 'Lanche pós-treino',
+      name: 'Lanche da tarde',
       calories: 420,
       carbs: 60,
       protein: 30,
       fat: 10,
-      foods: ['Shake de whey', 'Aveia', 'Mel', 'Frutas vermelhas'],
+      items: [
+        { ...CAT_PROT, grams: 30 },
+        { ...CAT_CARB_SIMPLE, grams: 50 },
+      ],
     },
     {
       time: '20:00',
@@ -239,26 +275,52 @@ export const mockNutritionDay: NutritionDay = {
       carbs: 95,
       protein: 35,
       fat: 22,
-      foods: ['Macarrão integral', 'Molho com carne', 'Legumes'],
+      items: [
+        { ...CAT_CARB_COMPLEX, grams: 90 },
+        { ...CAT_PROT, grams: 35 },
+        { ...CAT_FIBER, grams: 150 },
+        { ...CAT_FAT, grams: 15 },
+      ],
     },
   ],
   preRun: {
-    timing: '90 min antes',
-    description: 'Carboidratos de digestão lenta + uma dose de cafeína.',
-    foods: ['Aveia', '1 banana', 'Café'],
-    notes: 'Evite gorduras e fibras pesadas. Hidrate-se com 500ml de água.',
+    timing: '60-90 min antes',
+    description: 'Carboidrato de absorção média + pouca proteína. Sem gordura ou fibra pesada.',
+    items: [
+      {
+        category: 'CHO de absorção média',
+        grams: 60,
+        options: ['aveia com banana', 'pão branco com mel', 'tapioca com mel'],
+      },
+    ],
+    notes: 'Hidrate com 400-500ml de água até 30min antes. Café opcional.',
   },
   duringRun: {
     timing: 'A cada 35-45 min',
-    description: 'Carboidratos de rápida absorção.',
-    foods: ['Gel 25g carbo', '150ml isotônico'],
+    description: 'Carboidrato de rápida absorção + eletrólitos.',
+    items: [
+      {
+        category: 'CHO rápido',
+        grams: 30,
+        options: ['gel de carboidrato 25g', 'banana madura', 'goma energética'],
+      },
+      {
+        category: 'Eletrólitos',
+        options: ['isotônico 250ml', 'cápsula de sal + água', 'tablete efervescente'],
+      },
+    ],
     notes: 'Alterne gel e isotônico em corridas > 90min.',
   },
   postRun: {
     timing: 'Até 30 min após',
-    description: 'Janela anabólica — repor glicogênio e acelerar recuperação.',
-    foods: ['Whey 30g', 'Banana', 'Tâmaras'],
-    notes: 'Proporção 3:1 carbo:proteína. Reidratar com 150% do peso perdido.',
+    description: 'Janela anabólica — 3:1 CHO:PRO pra repor glicogênio.',
+    items: [
+      {
+        category: 'CHO + PRO (3:1)',
+        options: ['whey isolate + suco de uva', 'arroz branco + frango', 'iogurte + mel + granola'],
+      },
+    ],
+    notes: 'Reidrate com 150% do peso perdido (pesar antes e depois).',
   },
 };
 

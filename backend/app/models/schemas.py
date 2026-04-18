@@ -165,6 +165,21 @@ class AnalyzeActivityRequest(BaseModel):
 TrainingLoad = Literal["rest", "light", "moderate", "hard", "long_run"]
 
 
+class FoodCategory(BaseModel):
+    """A nutrient slot with multiple interchangeable food options.
+
+    Example: { category: "Carboidrato complexo", grams: 60,
+               options: ["aveia", "tapioca", "batata-doce", "pão integral"] }
+
+    The UI shows the category label + grams + chips for each option so the user
+    can pick whichever they have/like without leaving the app to research
+    substitutions.
+    """
+    category: str
+    grams: Optional[float] = None
+    options: List[str]
+
+
 class Meal(BaseModel):
     time: str
     name: str
@@ -172,13 +187,13 @@ class Meal(BaseModel):
     carbs: int
     protein: int
     fat: int
-    foods: List[str]
+    items: List[FoodCategory]
 
 
 class MealSuggestion(BaseModel):
     timing: str
     description: str
-    foods: List[str]
+    items: List[FoodCategory]
     notes: str
 
 
