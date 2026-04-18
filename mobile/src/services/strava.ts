@@ -14,10 +14,13 @@ const discovery = {
   tokenEndpoint: 'https://www.strava.com/oauth/token',
 };
 
+// Strava expects scopes comma-separated in the authorize URL (not space-
+// separated like the OAuth 2.0 standard). Passing them as a single joined
+// string forces expo-auth-session to emit `scope=read,activity:read_all,...`
+// instead of the default `scope=read activity:read_all ...` which Strava
+// rejects with `{"field":"scope","code":"invalid"}`.
 export const STRAVA_SCOPES = [
-  'read',
-  'activity:read_all',
-  'profile:read_all',
+  'read,activity:read_all,profile:read_all',
 ];
 
 export function useStravaAuthRequest() {
