@@ -116,23 +116,70 @@ isAuthenticated = !!tokens && !!user?.onboarded
 
 ### Funcionando
 - [x] Strava OAuth completo (connect → goal → profile → dashboard)
-- [x] Fetch de atividades reais do Strava
+- [x] Fetch de histórico completo Strava (~6 meses, 600 runs, paginado)
 - [x] Histórico (`/activities`) com agrupamento mensal + totals
-- [x] Coach IA (chat com Claude via backend)
-- [x] Plano de treino (mock + geração via IA)
+- [x] Coach IA (chat via backend) com **Groq Llama 3.3 70B (grátis)** ou Claude
+- [x] **Plano de treino gerado pela IA** com RAG (KB de fisiologia + nutrição)
+  - Sempre começa na próxima segunda (nunca passado)
+  - Respeita ACWR, viabilidade de meta, dias de treino do usuário
+  - 2 semanas por vez (current + next), consistente (temp 0.3)
+  - Gate de 6 dias pra não regenerar no impulso
+- [x] **Nutrição real via IA** — macros g/kg por carga de treino do dia,
+  **famílias de alimentos** (3-5 opções por categoria em vez de item fixo)
+- [x] Training tab com navegação semanal + datas nos cards + glossário
+- [x] Progress com PRs verticais (1km/5k/10k/21k/42k/Ultra) + gráficos reais
+- [x] Dashboard com weekly stats reais + AI insight diária
+- [x] Perfil com seletor de dias de treino (SEG-DOM) + dia do longão
 - [x] GPS tracking (run flow) — telas index/active/summary existem
 - [x] Settings com notifications + health sync + logout
-- [x] Demo mode (botão dev na tela de login)
 - [x] "INICIAR TREINO" no WorkoutCard → /run
-- [x] AIInsightCard no dashboard → aba Coach
 
-### Pendente / Melhorias futuras
-- [ ] Weekly Stats do dashboard baseados nos dados reais do Strava (atualmente mock)
-- [ ] Gráficos de progresso na aba Progress (actualmente skeleton)
-- [ ] Nutrição na aba Nutrition (actualmente mock)
+### Arquitetura de IA (RAG mínimo via prompt injection)
+
+```
+backend/app/
+  knowledge/
+    training_physiology.md   # zonas, VDOT, ACWR, tapering, tabela semanas mínimas
+    nutrition_protocols.md   # macros g/kg, timing, carbo-loading, matriz treino↔dieta
+  services/claude_service.py # AIService — dispatch Groq/Anthropic, injeta KB nos prompts
+    COACH_SYSTEM    → KB_training + KB_nutrition (chat)
+    PLAN_SYSTEM     → KB_training               (gera plano)
+    INSIGHT_SYSTEM  → KB_training               (insight diário)
+    NUTRITION_SYSTEM→ KB_nutrition              (cardápio do dia)
+```
+
+Provider por `AI_PROVIDER` env: `groq` (default, grátis) ou `anthropic`.
+Se a key de um faltar, faz fallback pro outro.
+
+### Pendente / Próximas iterações
+- [ ] Múltiplos treinos por dia (corrida + musculação no mesmo dia)
+- [ ] Relatório automático no fim da semana com próxima semana já gerada
+- [ ] Persistência do plano no backend (DB) — agora é só local
+- [ ] Ajuste dinâmico quando o user pula treino / faz performance muito acima/abaixo
 - [ ] Mapa na tela de corrida ativa (run/active.tsx)
-- [ ] Persistência do plano de treino no backend (agora só local)
-- [ ] Push notifications funcionando em build de desenvolvimento
+- [ ] Push notifications (precisa dev build, não roda em Expo Go)
+- [ ] Vector search na KB quando passar de 20KB por doc
+
+## Configuração do .env (backend)
+
+```bash
+# AI — pega key grátis em console.groq.com/keys
+AI_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# Anthropic (opcional, só se AI_PROVIDER=anthropic)
+ANTHROPIC_API_KEY=sk-ant-...
+CLAUDE_MODEL=claude-sonnet-4-5
+
+# Strava
+STRAVA_CLIENT_ID=216298
+STRAVA_CLIENT_SECRET=...
+
+# Infra
+DATABASE_URL=postgresql+asyncpg://vincere:vincere@db:5432/vincere
+REDIS_URL=redis://redis:6379/0
+```
 
 ## Branch de desenvolvimento
 
@@ -151,7 +198,10 @@ claude/running-training-app-AH33y
 
 ## Commits recentes
 
-- `5599b9c` — Make goal/profile screens resilient to missing user
-- `6bdd899` — Fix broken buttons across onboarding and dashboard
-- `787f0b8` — Add backend OAuth callback + fix Strava redirect_uri
-- `df35241` — Activity history screen + 23 mock activities
+- `f3419a1` — Histórico completo Strava + plano só na próxima segunda + dias de treino + glossário
+- `a8dc453` — Fix plan gen truncado + nutrição com famílias de alimentos
+- `6504120` — Progress: meta ≠ volume semanal + PRs como lista vertical
+- `aeec8fd` — RAG básico + viabilidade de meta + nutrição cruzada treino↔dieta
+- `8e5ea98` — Training: calendário sincronizado + navegação semanal + datas nos cards
+- `8479db1` — Groq como provider grátis (default)
+- `7756bb3` — Dashboard/progress/training com dados reais do Strava + IA
