@@ -194,7 +194,7 @@ export default function ProgressScreen() {
           </View>
         </Animated.View>
 
-        {/* Personal records — vertical list, all distances */}
+        {/* Personal records — timeline visual (1km → Ultra) */}
         <Animated.View entering={FadeInDown.duration(500).delay(300)}>
           <Text
             variant="label"
@@ -202,66 +202,69 @@ export default function ProgressScreen() {
             tracking="wider"
             style={styles.sectionLabel}
           >
-            RECORDES PESSOAIS
+            JORNADA DAS DISTÂNCIAS
           </Text>
-          <View style={styles.recordList}>
-            {recordSlots.map((slot) => {
+          <View style={styles.timeline}>
+            {/* Vertical connector line */}
+            <View style={styles.timelineLine} />
+
+            {recordSlots.map((slot, idx) => {
               const conquered = slot.record !== null;
+              const isLast = idx === recordSlots.length - 1;
               return (
-                <View
-                  key={slot.distance}
-                  style={[
-                    styles.recordRow,
-                    conquered ? styles.recordRowDone : styles.recordRowPending,
-                  ]}
-                >
-                  <View style={styles.recordLeft}>
+                <View key={slot.distance} style={styles.timelineRow}>
+                  {/* Left marker: distance label + dot */}
+                  <View style={styles.timelineLeft}>
+                    <Text
+                      variant="h2"
+                      color={conquered ? Colors.tertiary : Colors.textTertiary}
+                      style={styles.timelineDistance}
+                    >
+                      {slot.distance.toUpperCase()}
+                    </Text>
                     <View
                       style={[
-                        styles.recordIconBox,
-                        {
-                          backgroundColor: conquered
-                            ? Colors.tertiary + '22'
-                            : Colors.card,
-                        },
+                        styles.timelineDot,
+                        conquered && styles.timelineDotDone,
+                        isLast && { borderColor: conquered ? Colors.tertiary : Colors.borderSubtle },
                       ]}
                     >
-                      <Ionicons
-                        name={conquered ? 'trophy' : 'lock-closed'}
-                        size={14}
-                        color={conquered ? Colors.tertiary : Colors.textTertiary}
-                      />
-                    </View>
-                    <View>
-                      <Text
-                        variant="h3"
-                        color={conquered ? Colors.textPrimary : Colors.textSecondary}
-                      >
-                        {slot.distance.toUpperCase()}
-                      </Text>
                       {conquered ? (
-                        <Text variant="caption" color={Colors.textSecondary}>
-                          {formatPace(slot.record!.pace)} /km
-                        </Text>
-                      ) : (
-                        <Text variant="caption" color={Colors.textTertiary}>
-                          Sem registro ainda
-                        </Text>
-                      )}
+                        <Ionicons name="trophy" size={10} color={Colors.textInverse} />
+                      ) : null}
                     </View>
                   </View>
 
-                  {conquered ? (
-                    <Text variant="metric" color={Colors.textPrimary} style={styles.recordTime}>
-                      {formatTime(slot.record!.time)}
-                    </Text>
-                  ) : (
-                    <View style={styles.pendingBadge}>
-                      <Text variant="label" color={Colors.textTertiary} tracking="wider">
-                        PENDENTE
-                      </Text>
-                    </View>
-                  )}
+                  {/* Right card: time + pace OR pending */}
+                  <View
+                    style={[
+                      styles.timelineCard,
+                      conquered ? styles.timelineCardDone : styles.timelineCardPending,
+                    ]}
+                  >
+                    {conquered ? (
+                      <>
+                        <Text variant="metric" color={Colors.textPrimary}>
+                          {formatTime(slot.record!.time)}
+                        </Text>
+                        <Text variant="caption" color={Colors.textSecondary}>
+                          {formatPace(slot.record!.pace)} /km · {formatDate(slot.record!.date)}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <View style={styles.pendingBadge}>
+                          <Ionicons name="lock-closed" size={10} color={Colors.textTertiary} />
+                          <Text variant="label" color={Colors.textTertiary} tracking="wider">
+                            PENDENTE
+                          </Text>
+                        </View>
+                        <Text variant="caption" color={Colors.textTertiary} style={{ marginTop: 4 }}>
+                          Conquiste uma corrida dessa distância pra desbloquear.
+                        </Text>
+                      </>
+                    )}
+                  </View>
                 </View>
               );
             })}
@@ -306,44 +309,68 @@ const styles = StyleSheet.create({
   chart: {
     marginLeft: -Spacing.base,
   },
-  recordList: {
-    gap: Spacing.sm,
+  // Timeline styles — vertical journey 1km → Ultra
+  timeline: {
+    position: 'relative',
   },
-  recordRow: {
+  timelineLine: {
+    position: 'absolute',
+    left: 85, // center of the 22px dot (distance col 64px + gap 8px + half dot 11px)
+    top: 20,
+    bottom: 20,
+    width: 2,
+    backgroundColor: Colors.borderSubtle,
+  },
+  timelineRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.card,
-    borderRadius: Radius.xl,
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.base,
-    borderWidth: 1,
+    marginBottom: Spacing.md,
+    minHeight: 64,
   },
-  recordRowDone: {
-    borderColor: Colors.tertiary + '40',
+  timelineLeft: {
+    width: 96,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  recordRowPending: {
+  timelineDistance: {
+    width: 64,
+    textAlign: 'right',
+    marginRight: 8,
+  },
+  timelineDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.background,
+    borderWidth: 2,
     borderColor: Colors.borderSubtle,
-    opacity: 0.85,
-  },
-  recordLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  recordIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
+  },
+  timelineDotDone: {
+    backgroundColor: Colors.tertiary,
+    borderColor: Colors.tertiary,
+  },
+  timelineCard: {
+    flex: 1,
+    marginLeft: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.xl,
+    padding: Spacing.base,
     borderWidth: 1,
+  },
+  timelineCardDone: {
+    borderColor: Colors.tertiary + '40',
+  },
+  timelineCardPending: {
     borderColor: Colors.borderSubtle,
   },
-  recordTime: {
-    textAlign: 'right',
-  },
   pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: Radius.pill,
@@ -352,3 +379,12 @@ const styles = StyleSheet.create({
     borderColor: Colors.borderSubtle,
   },
 });
+
+function formatDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' });
+  } catch {
+    return '';
+  }
+}

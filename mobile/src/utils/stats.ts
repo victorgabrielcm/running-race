@@ -75,13 +75,23 @@ export function lastNWeeks(activities: StravaActivity[], n: number): WeeklyStats
   return out;
 }
 
-const PR_DISTANCES: { label: string; meters: number }[] = [
-  { label: '1km', meters: 1000 },
-  { label: '5k', meters: 5000 },
-  { label: '10k', meters: 10000 },
-  { label: '21k', meters: 21097 },
-  { label: '42k', meters: 42195 },
-  { label: 'Ultra', meters: 50000 },
+/**
+ * Distância mínima (em metros) que uma corrida precisa ter pra entrar no
+ * cálculo do PR daquela categoria. Usamos thresholds ligeiramente abaixo
+ * dos valores oficiais (21.097 / 42.195) porque:
+ *   - Apps de GPS tem erro de ±1% na distância
+ *   - Treinos longos tipo "corrida de 21km" frequentemente vêm registrados
+ *     como 20.8-21.2km — descartá-los perderia dados reais
+ *   - O tempo do PR é extrapolado pelo pace × distância oficial depois, então
+ *     não estamos mentindo sobre o tempo — só aceitando a corrida como prova.
+ */
+const PR_DISTANCES: { label: string; meters: number; officialMeters: number }[] = [
+  { label: '1km', meters: 1000, officialMeters: 1000 },
+  { label: '5k', meters: 4900, officialMeters: 5000 },
+  { label: '10k', meters: 9800, officialMeters: 10000 },
+  { label: '21k', meters: 20500, officialMeters: 21097 },
+  { label: '42k', meters: 41000, officialMeters: 42195 },
+  { label: 'Ultra', meters: 50000, officialMeters: 50000 },
 ];
 
 export type PersonalRecordSlot = {
@@ -96,7 +106,7 @@ export type PersonalRecordSlot = {
  */
 export function personalRecordSlots(activities: StravaActivity[]): PersonalRecordSlot[] {
   const runs = onlyRuns(activities);
-  return PR_DISTANCES.map(({ label, meters }) => {
+  return PR_DISTANCES.map(({ label, meters, officialMeters }) => {
     const candidates = runs.filter((a) => a.distance >= meters && a.moving_time > 0);
     if (candidates.length === 0) return { distance: label, record: null };
     const best = candidates.reduce((prev, cur) => {
@@ -105,7 +115,7 @@ export function personalRecordSlots(activities: StravaActivity[]): PersonalRecor
       return curPace < prevPace ? cur : prev;
     });
     const pace = best.moving_time / (best.distance / 1000);
-    const time = pace * (meters / 1000);
+    const time = pace * (officialMeters / 1000);
     return {
       distance: label,
       record: {

@@ -40,6 +40,54 @@ Fórmula: `FC Alvo = ((FC Máx − FC Repouso) × %Intensidade) + FC Repouso`
 - GCT > 300 ms → drills pliométricos (pogo hops, corda)
 - Oscilação > 10 cm → leve inclinação para frente a partir dos tornozelos
 
+### D. Postura e Engenharia da Passada (Biomecânica Detalhada)
+
+#### Alinhamento do tronco
+- Leve inclinação para frente **originada nos tornozelos** (não na cintura)
+- Aterrissagem próxima ao centro de gravidade → reduz forças de frenagem
+- Overstriding (pé à frente do CG) aumenta exponencialmente estresse na tíbia
+  e pressão patelofemoral → canelite + dor no joelho
+
+#### Ativação do quadril e glúteos
+- Glúteos são responsáveis por estabilizar a pelve no apoio unilateral
+- Falha neuromuscular = **"drop pélvico"** → estresse transferido pra joelho/tíbia
+- Principal catalisador de canelite e dor patelofemoral
+- Exercícios: clamshell, ponte glútea, agachamento single-leg, deadlift
+
+#### Mecânica dos braços
+- Movimento rítmico e paralelo ao corpo
+- Oscilações transversais geram torque compensatório no tronco (ineficiência)
+- Ângulo 90° no cotovelo, mãos relaxadas
+
+#### Fortalecimento dos pés
+- Musculatura intrínseca dos pés = primeira linha de amortecimento
+- Exercícios descalços controlados OU calçados minimalistas curtos
+- Constrói arco plantar resiliente que dissipa energia antes de atingir ossos
+
+### E. Sinais de Corrida Lesiva vs. Eficiente
+
+| Indicador         | Eficiente                     | Lesiva                      |
+|-------------------|-------------------------------|-----------------------------|
+| Aterrissagem      | Alinhada ao CG                | Overstriding (pé à frente)  |
+| Cadência          | 170-185 spm                   | < 165 spm                   |
+| Oscilação vertical| 6-9 cm                        | > 10 cm                     |
+| Som do impacto    | Silencioso                    | Pisada forte e audível      |
+| Pelve             | Estável                       | Drop pélvico visível        |
+| GCT               | 200-250 ms                    | > 300 ms                    |
+
+### F. Interseção Fadiga Metabólica × Biomecânica
+
+Glicogênio baixo **não só** reduz velocidade — também altera sinalização
+neuromuscular, especialmente manuseio de cálcio intracelular, reduzindo:
+- Produção de força
+- Capacidade de amortecimento muscular
+- Estabilidade pélvica (glúteos não disparam corretamente)
+
+**Consequência:** com glicogênio em queda, impacto é transferido diretamente
+para tendões e ossos → lesões por uso repetitivo nos últimos km de prova
+longa. Nutrição intra-prova não é só sobre energia, é sobre PROTEGER a
+estrutura.
+
 ## 2. Periodização e Progressão
 
 ### A. Regras de Progressão
