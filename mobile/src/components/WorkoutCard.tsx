@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Gradients, Spacing, Radius, Shadow } from '@/theme';
 import { Text } from './ui/Text';
-import type { Workout, WorkoutType } from '@/types';
+import type { Workout, WorkoutType, WorkoutFeedback } from '@/types';
+import { zoneHintFor } from '@/utils/zones';
+import { useTrainingStore } from '@/stores/trainingStore';
+import { WorkoutFeedbackModal } from './WorkoutFeedbackModal';
 
 interface Props {
   workout: Workout;
@@ -62,6 +65,21 @@ export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
   const cfg = typeConfig[workout.type];
   const isToday = variant === 'today';
   const dateLabel = formatWorkoutDate(workout.date);
+  const recordFeedback = useTrainingStore((s) => s.recordWorkoutFeedback);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  const handleFeedback = (fb: WorkoutFeedback) => {
+    recordFeedback(workout.id, fb);
+  };
+
+  const isPastOrToday = (() => {
+    if (!workout.date) return false;
+    const [y, m, d] = workout.date.slice(0, 10).split('-').map(Number);
+    const workoutDate = new Date(y, m - 1, d);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return workoutDate.getTime() <= today.getTime();
+  })();
 
   const content = (
     <View style={[styles.card, isToday && styles.today]}>
@@ -100,6 +118,24 @@ export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
       <Text variant="h2" color={Colors.textPrimary} style={styles.title}>
         {workout.title}
       </Text>
+
+      {(() => {
+        const hint = zoneHintFor(workout.type);
+        if (!hint) return null;
+        return (
+          <View style={styles.zoneHint}>
+            <Ionicons name="pulse-outline" size={12} color={Colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text variant="label" color={Colors.primary} tracking="wider">
+                {hint.zone.toUpperCase()}
+              </Text>
+              <Text variant="caption" color={Colors.textSecondary} style={{ marginTop: 2 }}>
+                {hint.body}
+              </Text>
+            </View>
+          </View>
+        );
+      })()}
 
       {workout.description ? (
         <Text variant="body" color={Colors.textSecondary} style={styles.desc}>
@@ -145,17 +181,64 @@ export function WorkoutCard({ workout, variant = 'today', onPress }: Props) {
           <Ionicons name="arrow-forward" size={16} color={Colors.textInverse} />
         </Pressable>
       ) : null}
+
+      {/* Feedback button: only for past/today workouts that haven't got feedback yet */}
+      {isPastOrToday && !workout.feedback && workout.type !== 'rest' ? (
+        <Pressable
+          onPress={() => setFeedbackOpen(true)}
+          style={({ pressed }) => [
+            styles.feedbackBtn,
+            pressed && { opacity: 0.85 },
+          ]}
+          hitSlop={8}
+        >
+          <Ionicons name="chatbox-ellipses-outline" size={14} color={Colors.primary} />
+          <Text variant="label" color={Colors.primary} tracking="wider">
+            COMO FOI ESSE TREINO?
+          </Text>
+        </Pressable>
+      ) : null}
+
+      {/* Show captured feedback summary */}
+      {workout.feedback ? (
+        <View style={styles.feedbackSummary}>
+          <Ionicons name="checkmark-circle" size={14} color={Colors.primary} />
+          <Text variant="caption" color={Colors.textSecondary}>
+            Registrado como {feltLabel(workout.feedback.felt)}
+            {workout.feedback.rpe ? ` · RPE ${workout.feedback.rpe}` : ''}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-        {content}
-      </Pressable>
-    );
+  const wrapped = onPress ? (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+      {content}
+    </Pressable>
+  ) : content;
+
+  return (
+    <>
+      {wrapped}
+      <WorkoutFeedbackModal
+        visible={feedbackOpen}
+        workout={workout}
+        onClose={() => setFeedbackOpen(false)}
+        onSubmit={handleFeedback}
+      />
+    </>
+  );
+}
+
+function feltLabel(felt: string): string {
+  switch (felt) {
+    case 'easy': return 'leve';
+    case 'moderate': return 'no ponto';
+    case 'hard': return 'difícil';
+    case 'very_hard': return 'no limite';
+    default: return felt;
   }
-  return content;
 }
 
 function Stat({
@@ -226,6 +309,18 @@ const styles = StyleSheet.create({
   title: {
     marginTop: Spacing.xs,
   },
+  zoneHint: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: Radius.md,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+  },
   desc: {
     marginTop: Spacing.sm,
   },
@@ -247,5 +342,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  feedbackBtn: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.primaryMuted,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.primary + '40',
+  },
+  feedbackSummary: {
+    marginTop: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });

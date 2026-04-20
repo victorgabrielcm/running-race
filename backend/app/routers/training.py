@@ -32,6 +32,7 @@ async def generate_plan(req: GeneratePlanRequest, authorization: str = Header(No
             recent_activities=recent,
             training_days=req.training_days,
             long_run_day=req.long_run_day,
+            prior_week=req.prior_week,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -57,6 +58,7 @@ async def adjust_plan(req: GeneratePlanRequest, authorization: str = Header(None
             recent_activities=recent,
             training_days=req.training_days,
             long_run_day=req.long_run_day,
+            prior_week=req.prior_week,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

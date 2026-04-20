@@ -218,7 +218,7 @@ export default function SummaryScreen() {
 
           {/* AI coach prompt */}
           <Animated.View entering={FadeInDown.duration(500).delay(500)}>
-            <Pressable style={styles.aiCard}>
+            <Pressable style={styles.aiCard} onPress={() => router.push('/coach')}>
               <View style={styles.aiIcon}>
                 <Ionicons name="sparkles" size={18} color={Colors.primary} />
               </View>
@@ -227,7 +227,7 @@ export default function SummaryScreen() {
                   Pedir análise da IA
                 </Text>
                 <Text variant="caption" color={Colors.textSecondary}>
-                  Claude vai avaliar esse treino e ajustar o plano.
+                  Converse com o Coach sobre como foi esse treino.
                 </Text>
               </View>
               <Ionicons name="arrow-forward" size={18} color={Colors.primary} />

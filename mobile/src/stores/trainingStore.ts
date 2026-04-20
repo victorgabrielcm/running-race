@@ -3,6 +3,7 @@ import type {
   StravaActivity,
   TrainingPlan,
   Workout,
+  WorkoutFeedback,
   WeeklyStats,
   FitnessMetrics,
   CoachInsight,
@@ -30,6 +31,8 @@ interface TrainingState {
   setRecords: (records: PerformanceRecord[]) => void;
   setSyncing: (syncing: boolean) => void;
   setLastSync: (iso: string) => void;
+  /** Attach user feedback to a specific workout by ID and mark it completed. */
+  recordWorkoutFeedback: (workoutId: string, feedback: WorkoutFeedback) => void;
 }
 
 export const useTrainingStore = create<TrainingState>((set) => ({
@@ -57,4 +60,20 @@ export const useTrainingStore = create<TrainingState>((set) => ({
   setRecords: (records) => set({ records }),
   setSyncing: (isSyncing) => set({ isSyncing }),
   setLastSync: (iso) => set({ lastSyncAt: iso }),
+
+  recordWorkoutFeedback: (workoutId, feedback) =>
+    set((state) => {
+      if (!state.plan) return state;
+      return {
+        plan: {
+          ...state.plan,
+          weeks: state.plan.weeks.map((week) => ({
+            ...week,
+            workouts: week.workouts.map((w) =>
+              w.id === workoutId ? { ...w, completed: true, feedback } : w,
+            ),
+          })),
+        },
+      };
+    }),
 }));

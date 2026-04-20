@@ -167,6 +167,87 @@ def _format_training_days(days: Optional[List[int]], count: int) -> str:
     return ", ".join(WEEKDAY_NAMES_PT[d] for d in valid)
 
 
+# ─── Adaptive progression ──────────────────────────────────────────────────
+#
+# Replaces the rigid "always +10%" rule with a bucket-based approach that looks
+# at how the athlete actually FELT during last week. Buckets:
+#
+#   hold          : 0% (or -5% if very stressed)  — body asking for recovery
+#   conservative  : +3 to +7%                     — normal progression, safe
+#   standard      : +8 to +12%                    — athlete cruising, safe to push
+#   aggressive    : +13 to +20%                   — thriving, clear capacity for more
+#
+# Signals:
+#   - % of workouts completed
+#   - Distribution of "felt" feedback (easy / moderate / hard / very_hard)
+#   - Average RPE (if reported)
+#
+# We intentionally DON'T use HR alone — it's noisy. Subjective feedback + objective
+# completion rate together is what the sports-science literature recommends.
+
+def _compute_progression_bucket(prior_week: Optional[List[dict]]) -> dict:
+    """Returns: {bucket: str, min_pct: int, max_pct: int, summary: str}"""
+    if not prior_week:
+        return {
+            "bucket": "conservative",
+            "min_pct": 3,
+            "max_pct": 8,
+            "summary": "Sem dados da semana anterior — começando conservador.",
+        }
+
+    non_rest = [w for w in prior_week if w.get("type") != "rest"]
+    total = len(non_rest) or 1
+    completed = [w for w in non_rest if w.get("completed") or w.get("feedback")]
+    completion_pct = int(100 * len(completed) / total)
+
+    feedbacks = [w.get("feedback") for w in non_rest if w.get("feedback")]
+    felt_counts = {"easy": 0, "moderate": 0, "hard": 0, "very_hard": 0}
+    rpe_vals: List[int] = []
+    for f in feedbacks:
+        felt = (f or {}).get("felt")
+        if felt in felt_counts:
+            felt_counts[felt] += 1
+        rpe = (f or {}).get("rpe")
+        if isinstance(rpe, (int, float)):
+            rpe_vals.append(int(rpe))
+    avg_rpe = sum(rpe_vals) / len(rpe_vals) if rpe_vals else None
+
+    # Bucket decision — simple rule tree
+    if completion_pct < 60:
+        bucket = "hold"
+        min_pct, max_pct = -5, 0
+        summary = f"Apenas {completion_pct}% dos treinos concluídos — semana de recuperação."
+    elif felt_counts["very_hard"] >= 2 or (avg_rpe and avg_rpe >= 8):
+        bucket = "hold"
+        min_pct, max_pct = 0, 0
+        summary = "Muitos treinos no limite — manter volume e refinar qualidade."
+    elif felt_counts["hard"] >= 3 or (avg_rpe and avg_rpe >= 7):
+        bucket = "conservative"
+        min_pct, max_pct = 3, 7
+        summary = "Semana pesada porém sustentável — progressão gentil."
+    elif felt_counts["easy"] >= 3 and felt_counts["very_hard"] == 0:
+        bucket = "aggressive"
+        min_pct, max_pct = 13, 20
+        summary = "Semana confortável com margem clara — pode acelerar."
+    elif completion_pct >= 85 and (avg_rpe is None or avg_rpe <= 6):
+        bucket = "standard"
+        min_pct, max_pct = 8, 12
+        summary = "Plano cumprido no ponto — progressão padrão."
+    else:
+        bucket = "conservative"
+        min_pct, max_pct = 3, 7
+        summary = "Sinais mistos — progressão gentil por segurança."
+
+    return {
+        "bucket": bucket,
+        "min_pct": min_pct,
+        "max_pct": max_pct,
+        "summary": summary,
+        "completion_pct": completion_pct,
+        "avg_rpe": round(avg_rpe, 1) if avg_rpe else None,
+    }
+
+
 def _workout_to_load(workout_type: str) -> str:
     """Map workout type to training load bucket."""
     mapping = {
@@ -336,10 +417,12 @@ class AIService:
         recent_activities: List[StravaActivity],
         training_days: Optional[List[int]] = None,
         long_run_day: Optional[int] = None,
+        prior_week: Optional[List[dict]] = None,
     ) -> TrainingPlan:
         weeks_available = self._weeks_until(goal.targetDate) if goal.targetDate else 16
         summary = self._summarize_activities(recent_activities)
         weekly_load = self._weekly_load(recent_activities)
+        progression = _compute_progression_bucket(prior_week)
 
         # Plans ALWAYS start on the next Monday. Never schedule workouts in the
         # past — runs that already happened are pulled from Strava history and
@@ -404,8 +487,16 @@ INSTRUÇÕES (CUMPRA TODAS):
    na próxima segunda-feira — passado é puxado do histórico do Strava, não do plano.
 2. Cada semana tem EXATAMENTE 7 workouts, UM POR DIA, datas consecutivas de
    segunda a domingo. Sem pular dia. Dias sem treino usam type="rest" (não omitir).
-3. Volume semana 1: no máximo {max(8, weekly_load['chronic'] * 1.1):.0f} km.
-   Semana 2: no máximo +10% sobre semana 1.
+3. PROGRESSÃO ADAPTATIVA baseada no feedback da semana anterior:
+   Bucket atual: {progression['bucket'].upper()} ({progression['min_pct']}% a {progression['max_pct']}%).
+   Motivo: {progression['summary']}
+   Use essa faixa PARA A PROGRESSÃO DA SEMANA 2 sobre a semana 1 — NÃO aplique
+   mais a regra rígida de 10%. A IA deve sentir a cadência do atleta.
+
+   Volume semana 1: baseline = {max(8, weekly_load['chronic']):.0f} km
+   (volume médio das últimas 4 semanas, ajustado).
+   Volume semana 2: semana 1 × (1 + valor dentro da faixa {progression['min_pct']}-{progression['max_pct']}%).
+   Se o bucket for "hold" com valor negativo, é semana de descarga (deload).
 4. DIAS DISPONÍVEIS PRO TREINO: {_format_training_days(training_days, days_per_week)}.
    Nos dias FORA dessa lista, o workout OBRIGATORIAMENTE tem type="rest" ou "mobility".
    Nos dias disponíveis, aloque os {days_per_week} treinos de corrida/qualidade.

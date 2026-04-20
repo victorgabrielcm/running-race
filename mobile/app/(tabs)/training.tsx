@@ -172,11 +172,22 @@ export default function TrainingScreen() {
     if (!goal) return;
     setGenerating(true);
     try {
+      // Collect last-completed week so the backend can bucket progression
+      const priorWeek = (plan.weeks[0]?.workouts ?? []).map((w) => ({
+        id: w.id,
+        type: w.type,
+        completed: w.completed,
+        feedback: w.feedback
+          ? { felt: w.feedback.felt, rpe: w.feedback.rpe ?? undefined }
+          : null,
+      }));
+
       const newPlan = await generateTrainingPlan({
         goal,
         training_days: user?.trainingDays,
         long_run_day: user?.longRunDay,
         fitness_level: user?.fitnessLevel,
+        prior_week: priorWeek.length ? priorWeek : undefined,
       });
       setPlan(newPlan);
       Alert.alert(

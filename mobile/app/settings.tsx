@@ -29,9 +29,11 @@ export default function SettingsScreen() {
     reminderMinute,
     healthSyncEnabled,
     autoSyncAfterRun,
+    coachInsightsEnabled,
     setNotificationsEnabled,
     setHealthSyncEnabled,
     setAutoSyncAfterRun,
+    setCoachInsightsEnabled,
   } = useSettingsStore();
 
   const [togglingNotif, setTogglingNotif] = useState(false);
@@ -168,14 +170,13 @@ export default function SettingsScreen() {
             icon="sparkles"
             iconColor={Colors.tertiary}
             title="Insights do Coach IA"
-            subtitle="Receba análises automáticas após cada treino"
+            subtitle="Mostra análise automática ao abrir o dashboard"
             right={
               <Switch
-                value={notificationsEnabled}
-                onValueChange={handleNotificationsToggle}
+                value={coachInsightsEnabled}
+                onValueChange={setCoachInsightsEnabled}
                 trackColor={{ false: Colors.border, true: Colors.primary + '80' }}
-                thumbColor={notificationsEnabled ? Colors.primary : Colors.textTertiary}
-                disabled={togglingNotif}
+                thumbColor={coachInsightsEnabled ? Colors.primary : Colors.textTertiary}
               />
             }
           />

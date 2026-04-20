@@ -103,6 +103,18 @@ export type WorkoutType =
   | 'cross_training'
   | 'rest';
 
+/** User-reported subjective feedback for a completed workout.
+ *  Feeds the adaptive progression system — next week's volume/intensity is
+ *  bucketed based on how the athlete actually FELT vs what the plan asked. */
+export type WorkoutFelt = 'easy' | 'moderate' | 'hard' | 'very_hard';
+
+export interface WorkoutFeedback {
+  felt: WorkoutFelt;
+  rpe?: number;          // 1-10 (optional — slider in UI)
+  note?: string;
+  reportedAt: string;    // ISO timestamp
+}
+
 export interface Workout {
   id: string;
   type: WorkoutType;
@@ -117,7 +129,8 @@ export interface Workout {
   completed: boolean;
   stravaActivityId?: number;
   notes?: string;
-  rpe?: number; // 1-10 Rate of Perceived Exertion
+  rpe?: number; // legacy — migrate readers to feedback.rpe
+  feedback?: WorkoutFeedback;
 }
 
 export interface WorkoutZone {

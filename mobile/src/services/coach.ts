@@ -33,6 +33,14 @@ export interface PlanGenContext {
   training_days?: number[]; // 0=Mon..6=Sun
   long_run_day?: number;
   fitness_level?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+  /** Completed workouts from the prior week with user feedback — lets the
+   *  backend compute adaptive progression instead of a flat +10%. */
+  prior_week?: Array<{
+    id: string;
+    type: string;
+    completed?: boolean;
+    feedback?: { felt: string; rpe?: number } | null;
+  }>;
 }
 
 /** Generate a personalized training plan based on user goal + Strava history */

@@ -88,6 +88,13 @@ class WorkoutZone(BaseModel):
     label: str
 
 
+class WorkoutFeedback(BaseModel):
+    felt: Literal["easy", "moderate", "hard", "very_hard"]
+    rpe: Optional[int] = None
+    note: Optional[str] = None
+    reportedAt: str
+
+
 class Workout(BaseModel):
     id: str
     type: WorkoutType
@@ -102,6 +109,8 @@ class Workout(BaseModel):
     completed: bool = False
     stravaActivityId: Optional[int] = None
     notes: Optional[str] = None
+    rpe: Optional[int] = None
+    feedback: Optional[WorkoutFeedback] = None
 
 
 class TrainingWeek(BaseModel):
@@ -130,6 +139,10 @@ class GeneratePlanRequest(BaseModel):
     training_days: Optional[List[int]] = None  # 0=Mon..6=Sun
     long_run_day: Optional[int] = None
     fitness_level: Optional[Literal["beginner", "intermediate", "advanced", "elite"]] = None
+    # "prior_week" carries the completed workouts with user feedback, so the
+    # plan generator can bucket the next week's progression adaptively instead
+    # of blindly applying +10%. Shape: [{id, type, completed, feedback: {felt, rpe}}]
+    prior_week: Optional[List[dict]] = None
 
 
 # ─── Coach ──────────────────────────────────────────────────────────────────

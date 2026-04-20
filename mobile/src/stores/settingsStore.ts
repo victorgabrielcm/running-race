@@ -14,6 +14,7 @@ interface Settings {
   reminderMinute: number; // 0–59
   healthSyncEnabled: boolean;
   autoSyncAfterRun: boolean;
+  coachInsightsEnabled: boolean;
 }
 
 interface SettingsStore extends Settings {
@@ -22,6 +23,7 @@ interface SettingsStore extends Settings {
   setReminderTime: (hour: number, minute: number) => Promise<void>;
   setHealthSyncEnabled: (enabled: boolean) => Promise<void>;
   setAutoSyncAfterRun: (enabled: boolean) => Promise<void>;
+  setCoachInsightsEnabled: (enabled: boolean) => Promise<void>;
 }
 
 const defaults: Settings = {
@@ -30,6 +32,7 @@ const defaults: Settings = {
   reminderMinute: 30,
   healthSyncEnabled: false,
   autoSyncAfterRun: false,
+  coachInsightsEnabled: true,
 };
 
 async function persist(settings: Settings) {
@@ -72,6 +75,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   async setAutoSyncAfterRun(enabled) {
     const next: Settings = { ...get(), autoSyncAfterRun: enabled };
     set({ autoSyncAfterRun: enabled });
+    await persist(next);
+  },
+
+  async setCoachInsightsEnabled(enabled) {
+    const next: Settings = { ...get(), coachInsightsEnabled: enabled };
+    set({ coachInsightsEnabled: enabled });
     await persist(next);
   },
 }));
